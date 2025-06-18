@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khon's Chess</title>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    #chessboard {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 4px solid #fff;
+    }
+
+    .square {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 28px;
+    }
+
+    .white {
+      background-color: #eee;
+      color: #000;
+    }
+
+    .black {
+      background-color: #444;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="chessboard"></div>
+
+  <script>
+    const board = document.getElementById('chessboard');
+    const pieces = {
+      R: '🍸', // Bartender (Rook)
+      N: '🥁', // Tambourine (Knight substitute)
+      B: '🍶', // Sake Glass
+      Q: '🎷', // Saxophone (Queen)
+      K: '🎹', // Piano (King)
+      P: '🐖🪽' // Flying Pig
+    };
+
+    function getPiece(row, col) {
+      const backRow = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+      if (row === 1) return pieces.P;           // Black pawns (top side)
+      if (row === 6) return pieces.P;           // White pawns (bottom side)
+      if (row === 0) return pieces[backRow[col]]; // Black back row
+      if (row === 7) return pieces[backRow[col]]; // White back row
+      return '';
+    }
+
+    function drawBoard() {
+      board.innerHTML = '';
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement('div');
+          square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
+          const piece = getPiece(row, col);
+          if (piece) square.textContent = piece;
+          board.appendChild(square);
+        }
+      }
+    }
+
+    drawBoard();
+  </script>
+</body>
+</html>
