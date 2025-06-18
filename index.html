@@ -92,6 +92,26 @@
 .highlight {
   background-color: #66ff6655;
 }
+    .board-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.rank-label, .file-label {
+  position: absolute;
+  font-size: 0.75em;
+  color: #ccc;
+  font-family: monospace;
+}
+
+.rank-label {
+  left: -1.2em;
+}
+
+.file-label {
+  top: 100%;
+  transform: translateY(4px);
+}
   </style>
 </head>
 <body>
@@ -101,6 +121,9 @@
   <div id="qrOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 2em; font-weight: bold; justify-content: center; align-items: center;">Share</div>
       </div>
   <div id="chessboard"></div>
+    <div id="moveLog" style="margin-top: 16px; width: 90vw; max-width: 480px; background: #222; color: #0f0; font-family: monospace; font-size: 0.9em; padding: 10px; border-radius: 8px; max-height: 150px; overflow-y: auto;">
+  <strong>Move Log:</strong><br>
+</div>
 
   <script>
   const board = document.getElementById('chessboard');
@@ -131,34 +154,54 @@
   }
 
   function drawBoard() {
-    board.innerHTML = '';
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        const square = document.createElement('div');
-        square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
-        square.dataset.row = row;
-        square.dataset.col = col;
+  board.innerHTML = '';
+  const files = ['a','b','c','d','e','f','g','h'];
 
-        const piece = gameState[row][col];
-        if (piece) {
-          const img = document.createElement('img');
-          img.src = getSpriteForPiece(piece);
-          square.appendChild(img);
-        }
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const square = document.createElement('div');
+      square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
+      square.dataset.row = row;
+      square.dataset.col = col;
 
-        if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
-          square.classList.add('selected');
-        }
-
-        if (legalMoves.some(m => m.row === row && m.col === col)) {
-          square.classList.add('highlight');
-        }
-
-        square.addEventListener('click', handleSquareClick);
-        board.appendChild(square);
+      // Label ranks (1-8) on the left edge
+      if (col === 0) {
+        const rank = document.createElement('div');
+        rank.className = 'rank-label';
+        rank.style.top = 'calc(' + (row * 100 / 8) + '% + 4px)';
+        rank.textContent = 8 - row;
+        square.appendChild(rank);
       }
+
+      // Label files (a-h) on the bottom edge
+      if (row === 7) {
+        const file = document.createElement('div');
+        file.className = 'file-label';
+        file.style.left = (col * 100 / 8) + '%';
+        file.textContent = files[col];
+        square.appendChild(file);
+      }
+
+      const piece = gameState[row][col];
+      if (piece) {
+        const img = document.createElement('img');
+        img.src = getSpriteForPiece(piece);
+        square.appendChild(img);
+      }
+
+      if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
+        square.classList.add('selected');
+      }
+
+      if (legalMoves.some(m => m.row === row && m.col === col)) {
+        square.classList.add('highlight');
+      }
+
+      square.addEventListener('click', handleSquareClick);
+      board.appendChild(square);
     }
   }
+}
 
   function handleSquareClick(e) {
     const row = parseInt(e.currentTarget.dataset.row);
@@ -216,6 +259,19 @@
     drawBoard();
   }
 
+    function logMove(from, to, piece) {
+  const files = ['a','b','c','d','e','f','g','h'];
+  const fromNotation = files[from.col] + (8 - from.row);
+  const toNotation = files[to.col] + (8 - to.row);
+  const moveStr = piece.color === 'white'
+    ? `${Math.ceil(moveHistory.length / 2)}. ${fromNotation}-${toNotation}`
+    : `${fromNotation}-${toNotation}`;
+
+  const logDiv = document.getElementById('moveLog');
+  logDiv.innerHTML += moveStr + ' ';
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+    
   function getLegalMoves(row, col, piece) {
     const moves = [];
     const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
