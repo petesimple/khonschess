@@ -66,6 +66,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
+  overflow: hidden;         /* ✅ Prevent layout overflow from labels */
 }
 
 .square img {
@@ -104,13 +105,13 @@
   font-family: monospace;
 }
 
-.rank-label {
-  left: -1.2em;
-}
-
-.file-label {
-  top: 100%;
-  transform: translateY(4px);
+.rank-label, .file-label {
+  font-size: 0.7em;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  position: absolute;
+  background: none;
 }
   </style>
 </head>
