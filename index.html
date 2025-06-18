@@ -124,6 +124,11 @@
     <div id="moveLog" style="margin-top: 16px; width: 90vw; max-width: 480px; background: #222; color: #0f0; font-family: monospace; font-size: 0.9em; padding: 10px; border-radius: 8px; max-height: 150px; overflow-y: auto;">
   <strong>Move Log:</strong><br>
 </div>
+    <div style="margin-top: 10px;">
+  <button onclick="downloadPGN()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #333; color: #0f0; border: 1px solid #0f0;">
+    ⬇️ Download PGN
+  </button>
+</div>
 
   <script>
   const board = document.getElementById('chessboard');
@@ -139,6 +144,7 @@
     black: { K: true, Q: true }
   };
   let enPassantTarget = null;
+    let pgnMoves = []; // store moves in [white, black] format per turn
 
   function setupBoard() {
     for (let col = 0; col < 8; col++) {
@@ -263,12 +269,20 @@
   const files = ['a','b','c','d','e','f','g','h'];
   const fromNotation = files[from.col] + (8 - from.row);
   const toNotation = files[to.col] + (8 - to.row);
-  const moveStr = piece.color === 'white'
-    ? `${Math.ceil(moveHistory.length / 2)}. ${fromNotation}-${toNotation}`
-    : `${fromNotation}-${toNotation}`;
+  const moveNotation = fromNotation + toNotation;
 
+  if (piece.color === 'white') {
+    pgnMoves.push([moveNotation, '']);
+  } else {
+    if (pgnMoves.length === 0) pgnMoves.push(['', '']);
+    pgnMoves[pgnMoves.length - 1][1] = moveNotation;
+  }
+
+  // Rebuild display log
   const logDiv = document.getElementById('moveLog');
-  logDiv.innerHTML += moveStr + ' ';
+  logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
+    return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
+  }).join('<br>');
   logDiv.scrollTop = logDiv.scrollHeight;
 }
     
@@ -347,6 +361,29 @@
 
   setupBoard();
   drawBoard();
+
+    function downloadPGN() {
+  const pgnHeader = `[Event "Khon's Chess Match"]
+[Site "Khon's Bar"]
+[Date "${new Date().toISOString().split('T')[0]}"]
+[Round "-"]
+[White "Player 1"]
+[Black "Player 2"]
+[Result "*"]
+
+`;
+
+  const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
+  const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
+
+  const blob = new Blob([fullPGN], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'khons-chess-game.pgn';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
     let showingQR = false;
     
