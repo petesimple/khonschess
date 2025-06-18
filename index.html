@@ -30,6 +30,7 @@
       justify-content: center;
       align-items: center;
       font-size: 28px;
+      cursor: pointer;
     }
 
     .white {
@@ -41,6 +42,10 @@
       background-color: #444;
       color: #fff;
     }
+
+    .selected {
+      outline: 3px solid yellow;
+    }
   </style>
 </head>
 <body>
@@ -49,21 +54,26 @@
   <script>
     const board = document.getElementById('chessboard');
     const pieces = {
-      R: '🍸', // Bartender (Rook)
-      N: '🥁', // Tambourine (Knight substitute)
+      R: '🍸', // Bartender
+      N: '🥁', // Tambourine
       B: '🍶', // Sake Glass
-      Q: '🎷', // Saxophone (Queen)
-      K: '🎹', // Piano (King)
+      Q: '🎷', // Saxophone
+      K: '🎹', // Piano
       P: '🐖🪽' // Flying Pig
     };
 
-    function getPiece(row, col) {
-      const backRow = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
-      if (row === 1) return pieces.P;           // Black pawns (top side)
-      if (row === 6) return pieces.P;           // White pawns (bottom side)
-      if (row === 0) return pieces[backRow[col]]; // Black back row
-      if (row === 7) return pieces[backRow[col]]; // White back row
-      return '';
+    let gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+    const backRow = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+    let selectedSquare = null;
+    let currentPlayer = 'white';
+
+    function setupBoard() {
+      for (let col = 0; col < 8; col++) {
+        gameState[0][col] = { type: backRow[col], color: 'black' };
+        gameState[1][col] = { type: 'P', color: 'black' };
+        gameState[6][col] = { type: 'P', color: 'white' };
+        gameState[7][col] = { type: backRow[col], color: 'white' };
+      }
     }
 
     function drawBoard() {
@@ -72,13 +82,51 @@
         for (let col = 0; col < 8; col++) {
           const square = document.createElement('div');
           square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
-          const piece = getPiece(row, col);
-          if (piece) square.textContent = piece;
+          square.dataset.row = row;
+          square.dataset.col = col;
+
+          const piece = gameState[row][col];
+          if (piece) {
+            square.textContent = pieces[piece.type];
+          }
+
+          if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
+            square.classList.add('selected');
+          }
+
+          square.addEventListener('click', handleSquareClick);
           board.appendChild(square);
         }
       }
     }
 
+    function handleSquareClick(e) {
+      const row = parseInt(e.currentTarget.dataset.row);
+      const col = parseInt(e.currentTarget.dataset.col);
+      const clickedPiece = gameState[row][col];
+
+      if (selectedSquare) {
+        const from = selectedSquare;
+        const to = { row, col };
+        const movingPiece = gameState[from.row][from.col];
+
+        // Basic move rule: move only if target is empty or enemy
+        if (!clickedPiece || clickedPiece.color !== movingPiece.color) {
+          gameState[to.row][to.col] = movingPiece;
+          gameState[from.row][from.col] = null;
+          currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+        }
+        selectedSquare = null;
+      } else {
+        if (clickedPiece && clickedPiece.color === currentPlayer) {
+          selectedSquare = { row, col };
+        }
+      }
+
+      drawBoard();
+    }
+
+    setupBoard();
     drawBoard();
   </script>
 </body>
