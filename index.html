@@ -228,59 +228,70 @@ board.appendChild(square);
 }
 
 function handleSquareClick(e) {
-const row = parseInt(e.currentTarget.dataset.row);
-const col = parseInt(e.currentTarget.dataset.col);
-const clickedPiece = gameState[row][col];
+  const row = parseInt(e.currentTarget.dataset.row);
+  const col = parseInt(e.currentTarget.dataset.col);
+  const clickedPiece = gameState[row][col];
 
-if (selectedSquare) {
-if (legalMoves.some(m => m.row === row && m.col === col)) {
-const from = selectedSquare;
-const piece = gameState[from.row][from.col];
-const move = { fromRow: from.row, fromCol: from.col, toRow: row, toCol: col, piece, capture: gameState[row][col] };
+  if (selectedSquare) {
+    if (legalMoves.some(m => m.row === row && m.col === col)) {
+      const from = selectedSquare;
+      const piece = gameState[from.row][from.col];
+      const move = {
+        fromRow: from.row,
+        fromCol: from.col,
+        toRow: row,
+        toCol: col,
+        piece,
+        capture: gameState[row][col]
+      };
 
-// Castling
-if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
-const rookCol = col === 6 ? 7 : 0;
-const newRookCol = col === 6 ? 5 : 3;
-const rook = gameState[row][rookCol];
-gameState[row][newRookCol] = rook;
-gameState[row][rookCol] = null;
-}
+      // Castling
+      if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
+        const rookCol = col === 6 ? 7 : 0;
+        const newRookCol = col === 6 ? 5 : 3;
+        const rook = gameState[row][rookCol];
+        gameState[row][newRookCol] = rook;
+        gameState[row][rookCol] = null;
+      }
 
-// En passant
-if (piece.type === 'P' && col !== from.col && !move.capture) {
-move.capture = gameState[from.row][col];
-gameState[from.row][col] = null;
-}
+      // En passant
+      if (piece.type === 'P' && col !== from.col && !move.capture) {
+        move.capture = gameState[from.row][col];
+        gameState[from.row][col] = null;
+      }
 
-// Move the piece
-gameState[row][col] = { ...piece, hasMoved: true };
-gameState[from.row][from.col] = null;
+      // Move the piece
+      gameState[row][col] = { ...piece, hasMoved: true };
+      gameState[from.row][from.col] = null;
 
-// Promotion
-if (piece.type === 'P' && (row === 0 || row === 7)) {
-gameState[row][col].type = 'Q';
-}
+      // Promotion
+      if (piece.type === 'P' && (row === 0 || row === 7)) {
+        gameState[row][col].type = 'Q';
+      }
 
-// En passant target update
-enPassantTarget = null;
-if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
-enPassantTarget = { row: (row + from.row) / 2, col };
-}
+      // ✅ Log the move in PGN-style
+      logMove(from, { row, col }, piece);
 
-moveHistory.push(move);
-currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-}
-selectedSquare = null;
-legalMoves = [];
-} else {
-if (clickedPiece && clickedPiece.color === currentPlayer) {
-selectedSquare = { row, col };
-legalMoves = getLegalMoves(row, col, clickedPiece);
-}
-}
+      // En passant target update
+      enPassantTarget = null;
+      if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
+        enPassantTarget = { row: (row + from.row) / 2, col };
+      }
 
-drawBoard();
+      moveHistory.push(move);
+      currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+    }
+
+    selectedSquare = null;
+    legalMoves = [];
+  } else {
+    if (clickedPiece && clickedPiece.color === currentPlayer) {
+      selectedSquare = { row, col };
+      legalMoves = getLegalMoves(row, col, clickedPiece);
+    }
+  }
+
+  drawBoard();
 }
 
 function logMove(from, to, piece) {
