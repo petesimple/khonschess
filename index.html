@@ -6,48 +6,19 @@
   <title>Khon's Chess</title>
   <style>
     body {
-      background-color: #1e1e1e;
-      color: #fff;
-      font-family: 'Courier New', Courier, monospace;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    #chessboard {
-      display: grid;
-      grid-template-columns: repeat(8, 60px);
-      grid-template-rows: repeat(8, 60px);
-      border: 4px solid #fff;
-    }
-
-    .square img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
+  background-color: #1e1e1e;
+  color: #fff;
+  font-family: 'Courier New', Courier, monospace;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 10px;
+  margin: 0;
+  min-height: 100vh;
 }
 
-    .white {
-      background-color: #eee;
-      color: #000;
-    }
-
-    .black {
-      background-color: #444;
-      color: #fff;
-    }
-
-    .selected {
-      outline: 3px solid yellow;
-    }
-
-    .highlight {
-      background-color: #66ff6655;
-    }
-    .logo-wrapper {
+.logo-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -56,7 +27,7 @@
 
 #logoImage {
   max-width: 180px;
-  width: 100%;
+  width: 80vw;
   height: auto;
   border: 2px solid #fff;
   border-radius: 12px;
@@ -71,12 +42,52 @@
   height: 100%;
   background: rgba(0,0,0,0.6);
   color: #fff;
-  font-size: 2em;
+  font-size: 1.5em;
   font-weight: bold;
   justify-content: center;
   align-items: center;
   text-align: center;
   border-radius: 12px;
+}
+
+#chessboard {
+  display: grid;
+  width: 90vw;
+  max-width: 480px;
+  grid-template-columns: repeat(8, 1fr);
+  aspect-ratio: 1 / 1;
+  border: 4px solid #fff;
+}
+
+.square {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.square img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.white {
+  background-color: #eee;
+  color: #000;
+}
+
+.black {
+  background-color: #444;
+  color: #fff;
+}
+
+.selected {
+  outline: 3px solid yellow;
+}
+
+.highlight {
+  background-color: #66ff6655;
 }
   </style>
 </head>
