@@ -1,65 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <meta name="theme-color" content="#1e1e1e" />
-  <title>Khon's Chess</title>
-  <style>
-    body {
-  background-color: #1e1e1e;
-  color: #fff;
-  font-family: 'Courier New', Courier, monospace;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 10px;
-  margin: 0;
-  min-height: 100vh;
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1e1e1e" />
+<title>Khon's Chess</title>
+<style>
+body {
+background-color: #1e1e1e;
+color: #fff;
+font-family: 'Courier New', Courier, monospace;
+display: flex;
+flex-direction: column;
+justify-content: flex-start;
+align-items: center;
+padding: 10px;
+margin: 0;
+min-height: 100vh;
 }
 
 .logo-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 10px;
+display: flex;
+flex-direction: column;
+align-items: center;
+margin-bottom: 10px;
 }
 
 #logoImage {
-  max-width: 180px;
-  width: 80vw;
-  height: auto;
-  border: 2px solid #fff;
-  border-radius: 12px;
+max-width: 180px;
+width: 80vw;
+height: auto;
+border: 2px solid #fff;
+border-radius: 12px;
 }
 
 #qrOverlay {
-  display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  font-size: 1.5em;
-  font-weight: bold;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  border-radius: 12px;
+display: none;
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.6);
+color: #fff;
+font-size: 1.5em;
+font-weight: bold;
+justify-content: center;
+align-items: center;
+text-align: center;
+border-radius: 12px;
 }
 
 #chessboard {
-  display: grid;
-  width: 90vw;
-  max-width: 480px;
-  grid-template-columns: repeat(8, 1fr);
-  aspect-ratio: 1 / 1;
-  border: 4px solid #fff;
+display: grid;
+width: 90vw;
+max-width: 480px;
+grid-template-columns: repeat(8, 1fr);
+aspect-ratio: 1 / 1;
+border: 4px solid #fff;
 }
 
 .square {
@@ -70,39 +70,32 @@
 }
 
 .square img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
+width: 100%;
+height: 100%;
+object-fit: contain;
+pointer-events: none;
 }
 
 .white {
-  background-color: #eee;
-  color: #000;
+background-color: #eee;
+color: #000;
 }
 
 .black {
-  background-color: #444;
-  color: #fff;
+background-color: #444;
+color: #fff;
 }
 
 .selected {
-  outline: 3px solid yellow;
+outline: 3px solid yellow;
 }
 
 .highlight {
-  background-color: #66ff6655;
+background-color: #66ff6655;
 }
-    .board-wrapper {
-  position: relative;
-  display: inline-block;
-}
-
-.rank-label, .file-label {
-  position: absolute;
-  font-size: 0.75em;
-  color: #ccc;
-  font-family: monospace;
+.board-wrapper {
+position: relative;
+display: inline-block;
 }
 
 .rank-label, .file-label {
@@ -113,273 +106,282 @@
   position: absolute;
   background: none;
 }
-  </style>
+
+.rank-label {
+left: -1.2em;
+}
+
+.file-label {
+top: 100%;
+transform: translateY(4px);
+}
+</style>
 </head>
 <body>
-  <div class="logo-wrapper">
-      <div id="logoContainer" onclick="toggleQR()" style="position: relative; display: inline-block;">
-  <img id="logoImage" src="./kclogo.png" alt="Khons Chess logo" class="logo">
-  <div id="qrOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 2em; font-weight: bold; justify-content: center; align-items: center;">Share</div>
-      </div>
-  <div id="chessboard"></div>
-    <div id="moveLog" style="
+<div class="logo-wrapper">
+<div id="logoContainer" onclick="toggleQR()" style="position: relative; display: inline-block;">
+<img id="logoImage" src="./kclogo.png" alt="Khons Chess logo" class="logo">
+<div id="qrOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 2em; font-weight: bold; justify-content: center; align-items: center;">Share</div>
+</div>
+<div id="chessboard"></div>
+<div id="moveLog" style="
   margin-top: 75px;
-  width: 90vw;
-  max-width: 480px;
-  background: #222;
-  color: #0f0;
-  font-family: monospace;
-  font-size: 0.95em;
-  padding: 16px;
-  border-radius: 8px;
-  max-height: 160px;
-  overflow-y: auto;
-  line-height: 1.6;
-  box-shadow: 0 0 5px #0f0;
-  scroll-behavior: smooth;
+ width: 90vw;
+ max-width: 480px;
+ background: #222;
+ color: #0f0;
+ font-family: monospace;
+ font-size: 0.95em;
+ padding: 16px;
+ border-radius: 8px;
+ max-height: 160px;
+ overflow-y: auto;
+ line-height: 1.6;
+ box-shadow: 0 0 5px #0f0;
+ scroll-behavior: smooth;
 ">
-  <strong>Move Log:</strong><br>
+<strong>Move Log:</strong><br>
 </div>
-    <div style="margin-top: 10px;">
-  <button onclick="downloadPGN()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #333; color: #0f0; border: 1px solid #0f0;">
-    ⬇️ Download PGN
-  </button>
+<div style="margin-top: 10px;">
+<button onclick="downloadPGN()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #333; color: #0f0; border: 1px solid #0f0;">
+⬇️ Download PGN
+</button>
 </div>
 
-  <script>
-  const board = document.getElementById('chessboard');
+<script>
+const board = document.getElementById('chessboard');
 
-  let gameState = Array(8).fill(null).map(() => Array(8).fill(null));
-  const backRow = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
-  let selectedSquare = null;
-  let currentPlayer = 'white';
-  let legalMoves = [];
-  let moveHistory = [];
-  let castlingRights = {
-    white: { K: true, Q: true },
-    black: { K: true, Q: true }
-  };
-  let enPassantTarget = null;
-    let pgnMoves = []; // store moves in [white, black] format per turn
+let gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+const backRow = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'];
+let selectedSquare = null;
+let currentPlayer = 'white';
+let legalMoves = [];
+let moveHistory = [];
+let castlingRights = {
+white: { K: true, Q: true },
+black: { K: true, Q: true }
+};
+let enPassantTarget = null;
+let pgnMoves = []; // store moves in [white, black] format per turn
 
-  function setupBoard() {
-    for (let col = 0; col < 8; col++) {
-      gameState[0][col] = { type: backRow[col], color: 'black', hasMoved: false };
-      gameState[1][col] = { type: 'P', color: 'black', hasMoved: false };
-      gameState[6][col] = { type: 'P', color: 'white', hasMoved: false };
-      gameState[7][col] = { type: backRow[col], color: 'white', hasMoved: false };
-    }
-  }
-
-  function getSpriteForPiece(piece) {
-    return `${piece.color}-${piece.type.toLowerCase()}.png`;
-  }
-
-  function drawBoard() {
-  board.innerHTML = '';
-  const files = ['a','b','c','d','e','f','g','h'];
-
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const square = document.createElement('div');
-      square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
-      square.dataset.row = row;
-      square.dataset.col = col;
-
-      // Label ranks (1-8) on the left edge
-      if (col === 0) {
-        const rank = document.createElement('div');
-        rank.className = 'rank-label';
-        rank.style.top = 'calc(' + (row * 100 / 8) + '% + 4px)';
-        rank.textContent = 8 - row;
-        square.appendChild(rank);
-      }
-
-      // Label files (a-h) on the bottom edge
-      if (row === 7) {
-        const file = document.createElement('div');
-        file.className = 'file-label';
-        file.style.left = (col * 100 / 8) + '%';
-        file.textContent = files[col];
-        square.appendChild(file);
-      }
-
-      const piece = gameState[row][col];
-      if (piece) {
-        const img = document.createElement('img');
-        img.src = getSpriteForPiece(piece);
-        square.appendChild(img);
-      }
-
-      if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
-        square.classList.add('selected');
-      }
-
-      if (legalMoves.some(m => m.row === row && m.col === col)) {
-        square.classList.add('highlight');
-      }
-
-      square.addEventListener('click', handleSquareClick);
-      board.appendChild(square);
-    }
-  }
+function setupBoard() {
+for (let col = 0; col < 8; col++) {
+gameState[0][col] = { type: backRow[col], color: 'black', hasMoved: false };
+gameState[1][col] = { type: 'P', color: 'black', hasMoved: false };
+gameState[6][col] = { type: 'P', color: 'white', hasMoved: false };
+gameState[7][col] = { type: backRow[col], color: 'white', hasMoved: false };
+}
 }
 
-  function handleSquareClick(e) {
-    const row = parseInt(e.currentTarget.dataset.row);
-    const col = parseInt(e.currentTarget.dataset.col);
-    const clickedPiece = gameState[row][col];
-
-    if (selectedSquare) {
-      if (legalMoves.some(m => m.row === row && m.col === col)) {
-        const from = selectedSquare;
-        const piece = gameState[from.row][from.col];
-        const move = { fromRow: from.row, fromCol: from.col, toRow: row, toCol: col, piece, capture: gameState[row][col] };
-
-        // Castling
-        if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
-          const rookCol = col === 6 ? 7 : 0;
-          const newRookCol = col === 6 ? 5 : 3;
-          const rook = gameState[row][rookCol];
-          gameState[row][newRookCol] = rook;
-          gameState[row][rookCol] = null;
-        }
-
-        // En passant
-        if (piece.type === 'P' && col !== from.col && !move.capture) {
-          move.capture = gameState[from.row][col];
-          gameState[from.row][col] = null;
-        }
-
-        // Move the piece
-        gameState[row][col] = { ...piece, hasMoved: true };
-        gameState[from.row][from.col] = null;
-
-        // Promotion
-        if (piece.type === 'P' && (row === 0 || row === 7)) {
-          gameState[row][col].type = 'Q';
-        }
-
-        // En passant target update
-        enPassantTarget = null;
-        if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
-          enPassantTarget = { row: (row + from.row) / 2, col };
-        }
-
-        moveHistory.push(move);
-        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-      }
-      selectedSquare = null;
-      legalMoves = [];
-    } else {
-      if (clickedPiece && clickedPiece.color === currentPlayer) {
-        selectedSquare = { row, col };
-        legalMoves = getLegalMoves(row, col, clickedPiece);
-      }
-    }
-
-    drawBoard();
-  }
-
-    function logMove(from, to, piece) {
-  const files = ['a','b','c','d','e','f','g','h'];
-  const fromNotation = files[from.col] + (8 - from.row);
-  const toNotation = files[to.col] + (8 - to.row);
-  const moveNotation = fromNotation + toNotation;
-
-  if (piece.color === 'white') {
-    pgnMoves.push([moveNotation, '']);
-  } else {
-    if (pgnMoves.length === 0) pgnMoves.push(['', '']);
-    pgnMoves[pgnMoves.length - 1][1] = moveNotation;
-  }
-
-  // Rebuild display log
-  const logDiv = document.getElementById('moveLog');
-  logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
-    return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
-  }).join('<br>');
-  logDiv.scrollTop = logDiv.scrollHeight;
+function getSpriteForPiece(piece) {
+return `${piece.color}-${piece.type.toLowerCase()}.png`;
 }
-    
-  function getLegalMoves(row, col, piece) {
-    const moves = [];
-    const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
-    const directions = {
-      R: [[1,0], [-1,0], [0,1], [0,-1]],
-      B: [[1,1], [1,-1], [-1,1], [-1,-1]],
-      Q: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]],
-      N: [[2,1], [1,2], [-1,2], [-2,1], [-2,-1], [-1,-2], [1,-2], [2,-1]],
-      K: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
-    };
 
-    if (piece.type === 'P') {
-      const dir = piece.color === 'white' ? -1 : 1;
-      const startRow = piece.color === 'white' ? 6 : 1;
+function drawBoard() {
+board.innerHTML = '';
+const files = ['a','b','c','d','e','f','g','h'];
 
-      if (isOnBoard(row + dir, col) && !gameState[row + dir][col]) {
-        moves.push({ row: row + dir, col });
-        if (row === startRow && !gameState[row + 2 * dir][col]) {
-          moves.push({ row: row + 2 * dir, col });
-        }
-      }
+for (let row = 0; row < 8; row++) {
+for (let col = 0; col < 8; col++) {
+const square = document.createElement('div');
+square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
+square.dataset.row = row;
+square.dataset.col = col;
 
-      for (let dc of [-1, 1]) {
-        const r = row + dir, c = col + dc;
-        if (isOnBoard(r, c)) {
-          const target = gameState[r][c];
-          if (target && target.color !== piece.color) {
-            moves.push({ row: r, col: c });
-          } else if (enPassantTarget && enPassantTarget.row === r && enPassantTarget.col === c) {
-            moves.push({ row: r, col: c });
-          }
-        }
-      }
-    } else if (piece.type === 'N' || piece.type === 'K') {
-      for (let [dr, dc] of directions[piece.type]) {
-        const r = row + dr, c = col + dc;
-        if (isOnBoard(r, c) && (!gameState[r][c] || gameState[r][c].color !== piece.color)) {
-          moves.push({ row: r, col: c });
-        }
-      }
+// Label ranks (1-8) on the left edge
+if (col === 0) {
+const rank = document.createElement('div');
+rank.className = 'rank-label';
+rank.style.top = 'calc(' + (row * 100 / 8) + '% + 4px)';
+rank.textContent = 8 - row;
+square.appendChild(rank);
+}
 
-      // Castling for King
-      if (piece.type === 'K' && !piece.hasMoved) {
-        const side = piece.color;
-        if (castlingRights[side].K && !gameState[row][5] && !gameState[row][6] &&
-            gameState[row][7] && gameState[row][7].type === 'R' && !gameState[row][7].hasMoved) {
-          moves.push({ row, col: 6 });
-        }
-        if (castlingRights[side].Q && !gameState[row][1] && !gameState[row][2] && !gameState[row][3] &&
-            gameState[row][0] && gameState[row][0].type === 'R' && !gameState[row][0].hasMoved) {
-          moves.push({ row, col: 2 });
-        }
-      }
-    } else {
-      for (let [dr, dc] of directions[piece.type]) {
-        for (let i = 1; i < 8; i++) {
-          const r = row + dr * i, c = col + dc * i;
-          if (!isOnBoard(r, c)) break;
-          if (!gameState[r][c]) {
-            moves.push({ row: r, col: c });
-          } else {
-            if (gameState[r][c].color !== piece.color) {
-              moves.push({ row: r, col: c });
-            }
-            break;
-          }
-        }
-      }
-    }
+// Label files (a-h) on the bottom edge
+if (row === 7) {
+const file = document.createElement('div');
+file.className = 'file-label';
+file.style.left = (col * 100 / 8) + '%';
+file.textContent = files[col];
+square.appendChild(file);
+}
 
-    return moves;
-  }
+const piece = gameState[row][col];
+if (piece) {
+const img = document.createElement('img');
+img.src = getSpriteForPiece(piece);
+square.appendChild(img);
+}
 
-  setupBoard();
-  drawBoard();
+if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
+square.classList.add('selected');
+}
 
-    function downloadPGN() {
-  const pgnHeader = `[Event "Khon's Chess Match"]
+if (legalMoves.some(m => m.row === row && m.col === col)) {
+square.classList.add('highlight');
+}
+
+square.addEventListener('click', handleSquareClick);
+board.appendChild(square);
+}
+}
+}
+
+function handleSquareClick(e) {
+const row = parseInt(e.currentTarget.dataset.row);
+const col = parseInt(e.currentTarget.dataset.col);
+const clickedPiece = gameState[row][col];
+
+if (selectedSquare) {
+if (legalMoves.some(m => m.row === row && m.col === col)) {
+const from = selectedSquare;
+const piece = gameState[from.row][from.col];
+const move = { fromRow: from.row, fromCol: from.col, toRow: row, toCol: col, piece, capture: gameState[row][col] };
+
+// Castling
+if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
+const rookCol = col === 6 ? 7 : 0;
+const newRookCol = col === 6 ? 5 : 3;
+const rook = gameState[row][rookCol];
+gameState[row][newRookCol] = rook;
+gameState[row][rookCol] = null;
+}
+
+// En passant
+if (piece.type === 'P' && col !== from.col && !move.capture) {
+move.capture = gameState[from.row][col];
+gameState[from.row][col] = null;
+}
+
+// Move the piece
+gameState[row][col] = { ...piece, hasMoved: true };
+gameState[from.row][from.col] = null;
+
+// Promotion
+if (piece.type === 'P' && (row === 0 || row === 7)) {
+gameState[row][col].type = 'Q';
+}
+
+// En passant target update
+enPassantTarget = null;
+if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
+enPassantTarget = { row: (row + from.row) / 2, col };
+}
+
+moveHistory.push(move);
+currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+}
+selectedSquare = null;
+legalMoves = [];
+} else {
+if (clickedPiece && clickedPiece.color === currentPlayer) {
+selectedSquare = { row, col };
+legalMoves = getLegalMoves(row, col, clickedPiece);
+}
+}
+
+drawBoard();
+}
+
+function logMove(from, to, piece) {
+const files = ['a','b','c','d','e','f','g','h'];
+const fromNotation = files[from.col] + (8 - from.row);
+const toNotation = files[to.col] + (8 - to.row);
+const moveNotation = fromNotation + toNotation;
+
+if (piece.color === 'white') {
+pgnMoves.push([moveNotation, '']);
+} else {
+if (pgnMoves.length === 0) pgnMoves.push(['', '']);
+pgnMoves[pgnMoves.length - 1][1] = moveNotation;
+}
+
+// Rebuild display log
+const logDiv = document.getElementById('moveLog');
+logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
+return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
+}).join('<br>');
+logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function getLegalMoves(row, col, piece) {
+const moves = [];
+const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+const directions = {
+R: [[1,0], [-1,0], [0,1], [0,-1]],
+B: [[1,1], [1,-1], [-1,1], [-1,-1]],
+Q: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]],
+N: [[2,1], [1,2], [-1,2], [-2,1], [-2,-1], [-1,-2], [1,-2], [2,-1]],
+K: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
+};
+
+if (piece.type === 'P') {
+const dir = piece.color === 'white' ? -1 : 1;
+const startRow = piece.color === 'white' ? 6 : 1;
+
+if (isOnBoard(row + dir, col) && !gameState[row + dir][col]) {
+moves.push({ row: row + dir, col });
+if (row === startRow && !gameState[row + 2 * dir][col]) {
+moves.push({ row: row + 2 * dir, col });
+}
+}
+
+for (let dc of [-1, 1]) {
+const r = row + dir, c = col + dc;
+if (isOnBoard(r, c)) {
+const target = gameState[r][c];
+if (target && target.color !== piece.color) {
+moves.push({ row: r, col: c });
+} else if (enPassantTarget && enPassantTarget.row === r && enPassantTarget.col === c) {
+moves.push({ row: r, col: c });
+}
+}
+}
+} else if (piece.type === 'N' || piece.type === 'K') {
+for (let [dr, dc] of directions[piece.type]) {
+const r = row + dr, c = col + dc;
+if (isOnBoard(r, c) && (!gameState[r][c] || gameState[r][c].color !== piece.color)) {
+moves.push({ row: r, col: c });
+}
+}
+
+// Castling for King
+if (piece.type === 'K' && !piece.hasMoved) {
+const side = piece.color;
+if (castlingRights[side].K && !gameState[row][5] && !gameState[row][6] &&
+gameState[row][7] && gameState[row][7].type === 'R' && !gameState[row][7].hasMoved) {
+moves.push({ row, col: 6 });
+}
+if (castlingRights[side].Q && !gameState[row][1] && !gameState[row][2] && !gameState[row][3] &&
+gameState[row][0] && gameState[row][0].type === 'R' && !gameState[row][0].hasMoved) {
+moves.push({ row, col: 2 });
+}
+}
+} else {
+for (let [dr, dc] of directions[piece.type]) {
+for (let i = 1; i < 8; i++) {
+const r = row + dr * i, c = col + dc * i;
+if (!isOnBoard(r, c)) break;
+if (!gameState[r][c]) {
+moves.push({ row: r, col: c });
+} else {
+if (gameState[r][c].color !== piece.color) {
+moves.push({ row: r, col: c });
+}
+break;
+}
+}
+}
+}
+
+return moves;
+}
+
+setupBoard();
+drawBoard();
+
+function downloadPGN() {
+const pgnHeader = `[Event "Khon's Chess Match"]
 [Site "Khon's Bar"]
 [Date "${new Date().toISOString().split('T')[0]}"]
 [Round "-"]
@@ -389,42 +391,42 @@
 
 `;
 
-  const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
-  const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
+const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
+const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
 
-  const blob = new Blob([fullPGN], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'khons-chess-game.pgn';
-  a.click();
-  URL.revokeObjectURL(url);
+const blob = new Blob([fullPGN], { type: 'text/plain' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'khons-chess-game.pgn';
+a.click();
+URL.revokeObjectURL(url);
 }
 
-    let showingQR = false;
-    
-    function toggleQR() {
-  const logo = document.getElementById('logoImage');
-  const overlay = document.getElementById('qrOverlay');
+let showingQR = false;
 
-  if (!showingQR) {
-    logo.src = './khonschess-qr.png';
-    overlay.style.display = 'flex'; // only show overlay on QR reveal
-    setTimeout(() => {
-      overlay.style.display = 'none';
-    }, 3000);
-  } else {
-    logo.src = './kclogo.png';
-    overlay.style.display = 'none'; // ensure overlay stays hidden when toggling back
-  }
-  showingQR = !showingQR;
+function toggleQR() {
+const logo = document.getElementById('logoImage');
+const overlay = document.getElementById('qrOverlay');
+
+if (!showingQR) {
+logo.src = './khonschess-qr.png';
+overlay.style.display = 'flex'; // only show overlay on QR reveal
+setTimeout(() => {
+overlay.style.display = 'none';
+}, 3000);
+} else {
+logo.src = './kclogo.png';
+overlay.style.display = 'none'; // ensure overlay stays hidden when toggling back
+}
+showingQR = !showingQR;
 }
 
-    if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(reg => console.log("✅ Service Worker Registered"))
-      .catch(err => console.warn("❌ Service Worker Failed:", err));
-  }
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('./service-worker.js')
+.then(reg => console.log("✅ Service Worker Registered"))
+.catch(err => console.warn("❌ Service Worker Failed:", err));
+}
 </script>
 </body>
 </html>
