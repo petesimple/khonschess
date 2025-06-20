@@ -155,6 +155,11 @@ transform: translateY(4px);
 ⬇️ Download PGN
 </button>
 </div>
+  <div style="margin-top: 10px;">
+  <button onclick="resetGame()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #900; color: #fff; border: 1px solid #f00;">
+    🔁 Reset Game
+  </button>
+</div>
 
 <script>
 const board = document.getElementById('chessboard');
@@ -166,20 +171,56 @@ let currentPlayer = 'white';
 let legalMoves = [];
 let moveHistory = [];
 let castlingRights = {
-white: { K: true, Q: true },
-black: { K: true, Q: true }
+  white: { K: true, Q: true },
+  black: { K: true, Q: true }
 };
 let enPassantTarget = null;
-let pgnMoves = []; // store moves in [white, black] format per turn
-let currentTheme = 'classic'; // Default
-  
+let pgnMoves = [];
+let currentTheme = 'classic';
+
 function setupBoard() {
-for (let col = 0; col < 8; col++) {
-gameState[0][col] = { type: backRow[col], color: 'black', hasMoved: false };
-gameState[1][col] = { type: 'P', color: 'black', hasMoved: false };
-gameState[6][col] = { type: 'P', color: 'white', hasMoved: false };
-gameState[7][col] = { type: backRow[col], color: 'white', hasMoved: false };
+  for (let col = 0; col < 8; col++) {
+    gameState[0][col] = { type: backRow[col], color: 'black', hasMoved: false };
+    gameState[1][col] = { type: 'P', color: 'black', hasMoved: false };
+    gameState[6][col] = { type: 'P', color: 'white', hasMoved: false };
+    gameState[7][col] = { type: backRow[col], color: 'white', hasMoved: false };
+  }
 }
+
+function saveGame() {
+  const saveData = {
+    gameState,
+    moveHistory,
+    pgnMoves,
+    currentPlayer
+  };
+  localStorage.setItem('khonsChessSave', JSON.stringify(saveData));
+}
+
+function loadGame() {
+  const saved = localStorage.getItem('khonsChessSave');
+  if (saved) {
+    const data = JSON.parse(saved);
+    gameState = data.gameState;
+    moveHistory = data.moveHistory || [];
+    pgnMoves = data.pgnMoves || [];
+    currentPlayer = data.currentPlayer || 'white';
+  } else {
+    setupBoard();
+  }
+  drawBoard();
+}
+
+function resetGame() {
+  if (confirm("Do you really want to reset the game?")) {
+    localStorage.removeItem('khonsChessSave');
+    gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+    moveHistory = [];
+    pgnMoves = [];
+    currentPlayer = 'white';
+    setupBoard();
+    drawBoard();
+  }
 }
 
 function getSpriteForPiece(piece) {
@@ -187,53 +228,58 @@ function getSpriteForPiece(piece) {
 }
 
 function drawBoard() {
-board.innerHTML = '';
-const files = ['a','b','c','d','e','f','g','h'];
+  board.innerHTML = '';
+  const files = ['a','b','c','d','e','f','g','h'];
 
-for (let row = 0; row < 8; row++) {
-for (let col = 0; col < 8; col++) {
-const square = document.createElement('div');
-square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
-square.dataset.row = row;
-square.dataset.col = col;
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const square = document.createElement('div');
+      square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
+      square.dataset.row = row;
+      square.dataset.col = col;
 
-// Label ranks (1-8) on the left edge
-if (col === 0) {
-const rank = document.createElement('div');
-rank.className = 'rank-label';
-rank.style.top = 'calc(' + (row * 100 / 8) + '% + 4px)';
-rank.textContent = 8 - row;
-square.appendChild(rank);
-}
+      if (col === 0) {
+        const rank = document.createElement('div');
+        rank.className = 'rank-label';
+        rank.style.top = 'calc(' + (row * 100 / 8) + '% + 4px)';
+        rank.textContent = 8 - row;
+        square.appendChild(rank);
+      }
 
-// Label files (a-h) on the bottom edge
-if (row === 7) {
-const file = document.createElement('div');
-file.className = 'file-label';
-file.style.left = (col * 100 / 8) + '%';
-file.textContent = files[col];
-square.appendChild(file);
-}
+      if (row === 7) {
+        const file = document.createElement('div');
+        file.className = 'file-label';
+        file.style.left = (col * 100 / 8) + '%';
+        file.textContent = files[col];
+        square.appendChild(file);
+      }
 
-const piece = gameState[row][col];
-if (piece) {
-const img = document.createElement('img');
-img.src = getSpriteForPiece(piece);
-square.appendChild(img);
-}
+      const piece = gameState[row][col];
+      if (piece) {
+        const img = document.createElement('img');
+        img.src = getSpriteForPiece(piece);
+        square.appendChild(img);
+      }
 
-if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
-square.classList.add('selected');
-}
+      if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
+        square.classList.add('selected');
+      }
 
-if (legalMoves.some(m => m.row === row && m.col === col)) {
-square.classList.add('highlight');
-}
+      if (legalMoves.some(m => m.row === row && m.col === col)) {
+        square.classList.add('highlight');
+      }
 
-square.addEventListener('click', handleSquareClick);
-board.appendChild(square);
-}
-}
+      square.addEventListener('click', handleSquareClick);
+      board.appendChild(square);
+    }
+  }
+
+  // Update move log display after redraw
+  const logDiv = document.getElementById('moveLog');
+  logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
+    return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
+  }).join('<br>');
+  logDiv.scrollTop = logDiv.scrollHeight;
 }
 
 function handleSquareClick(e) {
@@ -254,7 +300,6 @@ function handleSquareClick(e) {
         capture: gameState[row][col]
       };
 
-      // Castling
       if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
         const rookCol = col === 6 ? 7 : 0;
         const newRookCol = col === 6 ? 5 : 3;
@@ -263,25 +308,20 @@ function handleSquareClick(e) {
         gameState[row][rookCol] = null;
       }
 
-      // En passant
       if (piece.type === 'P' && col !== from.col && !move.capture) {
         move.capture = gameState[from.row][col];
         gameState[from.row][col] = null;
       }
 
-      // Move the piece
       gameState[row][col] = { ...piece, hasMoved: true };
       gameState[from.row][from.col] = null;
 
-      // Promotion
       if (piece.type === 'P' && (row === 0 || row === 7)) {
         gameState[row][col].type = 'Q';
       }
 
-      // ✅ Log the move in PGN-style
       logMove(from, { row, col }, piece);
 
-      // En passant target update
       enPassantTarget = null;
       if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
         enPassantTarget = { row: (row + from.row) / 2, col };
@@ -289,6 +329,8 @@ function handleSquareClick(e) {
 
       moveHistory.push(move);
       currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+
+      saveGame(); // ✅ Save after move
     }
 
     selectedSquare = null;
@@ -304,104 +346,93 @@ function handleSquareClick(e) {
 }
 
 function logMove(from, to, piece) {
-const files = ['a','b','c','d','e','f','g','h'];
-const fromNotation = files[from.col] + (8 - from.row);
-const toNotation = files[to.col] + (8 - to.row);
-const moveNotation = fromNotation + toNotation;
+  const files = ['a','b','c','d','e','f','g','h'];
+  const fromNotation = files[from.col] + (8 - from.row);
+  const toNotation = files[to.col] + (8 - to.row);
+  const moveNotation = fromNotation + toNotation;
 
-if (piece.color === 'white') {
-pgnMoves.push([moveNotation, '']);
-} else {
-if (pgnMoves.length === 0) pgnMoves.push(['', '']);
-pgnMoves[pgnMoves.length - 1][1] = moveNotation;
-}
-
-// Rebuild display log
-const logDiv = document.getElementById('moveLog');
-logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
-return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
-}).join('<br>');
-logDiv.scrollTop = logDiv.scrollHeight;
+  if (piece.color === 'white') {
+    pgnMoves.push([moveNotation, '']);
+  } else {
+    if (pgnMoves.length === 0) pgnMoves.push(['', '']);
+    pgnMoves[pgnMoves.length - 1][1] = moveNotation;
+  }
 }
 
 function getLegalMoves(row, col, piece) {
-const moves = [];
-const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
-const directions = {
-R: [[1,0], [-1,0], [0,1], [0,-1]],
-B: [[1,1], [1,-1], [-1,1], [-1,-1]],
-Q: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]],
-N: [[2,1], [1,2], [-1,2], [-2,1], [-2,-1], [-1,-2], [1,-2], [2,-1]],
-K: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
-};
+  const moves = [];
+  const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+  const directions = {
+    R: [[1,0], [-1,0], [0,1], [0,-1]],
+    B: [[1,1], [1,-1], [-1,1], [-1,-1]],
+    Q: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]],
+    N: [[2,1], [1,2], [-1,2], [-2,1], [-2,-1], [-1,-2], [1,-2], [2,-1]],
+    K: [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]]
+  };
 
-if (piece.type === 'P') {
-const dir = piece.color === 'white' ? -1 : 1;
-const startRow = piece.color === 'white' ? 6 : 1;
+  if (piece.type === 'P') {
+    const dir = piece.color === 'white' ? -1 : 1;
+    const startRow = piece.color === 'white' ? 6 : 1;
 
-if (isOnBoard(row + dir, col) && !gameState[row + dir][col]) {
-moves.push({ row: row + dir, col });
-if (row === startRow && !gameState[row + 2 * dir][col]) {
-moves.push({ row: row + 2 * dir, col });
-}
-}
+    if (isOnBoard(row + dir, col) && !gameState[row + dir][col]) {
+      moves.push({ row: row + dir, col });
+      if (row === startRow && !gameState[row + 2 * dir][col]) {
+        moves.push({ row: row + 2 * dir, col });
+      }
+    }
 
-for (let dc of [-1, 1]) {
-const r = row + dir, c = col + dc;
-if (isOnBoard(r, c)) {
-const target = gameState[r][c];
-if (target && target.color !== piece.color) {
-moves.push({ row: r, col: c });
-} else if (enPassantTarget && enPassantTarget.row === r && enPassantTarget.col === c) {
-moves.push({ row: r, col: c });
-}
-}
-}
-} else if (piece.type === 'N' || piece.type === 'K') {
-for (let [dr, dc] of directions[piece.type]) {
-const r = row + dr, c = col + dc;
-if (isOnBoard(r, c) && (!gameState[r][c] || gameState[r][c].color !== piece.color)) {
-moves.push({ row: r, col: c });
-}
-}
+    for (let dc of [-1, 1]) {
+      const r = row + dir, c = col + dc;
+      if (isOnBoard(r, c)) {
+        const target = gameState[r][c];
+        if (target && target.color !== piece.color) {
+          moves.push({ row: r, col: c });
+        } else if (enPassantTarget && enPassantTarget.row === r && enPassantTarget.col === c) {
+          moves.push({ row: r, col: c });
+        }
+      }
+    }
+  } else if (piece.type === 'N' || piece.type === 'K') {
+    for (let [dr, dc] of directions[piece.type]) {
+      const r = row + dr, c = col + dc;
+      if (isOnBoard(r, c) && (!gameState[r][c] || gameState[r][c].color !== piece.color)) {
+        moves.push({ row: r, col: c });
+      }
+    }
 
-// Castling for King
-if (piece.type === 'K' && !piece.hasMoved) {
-const side = piece.color;
-if (castlingRights[side].K && !gameState[row][5] && !gameState[row][6] &&
-gameState[row][7] && gameState[row][7].type === 'R' && !gameState[row][7].hasMoved) {
-moves.push({ row, col: 6 });
-}
-if (castlingRights[side].Q && !gameState[row][1] && !gameState[row][2] && !gameState[row][3] &&
-gameState[row][0] && gameState[row][0].type === 'R' && !gameState[row][0].hasMoved) {
-moves.push({ row, col: 2 });
-}
-}
-} else {
-for (let [dr, dc] of directions[piece.type]) {
-for (let i = 1; i < 8; i++) {
-const r = row + dr * i, c = col + dc * i;
-if (!isOnBoard(r, c)) break;
-if (!gameState[r][c]) {
-moves.push({ row: r, col: c });
-} else {
-if (gameState[r][c].color !== piece.color) {
-moves.push({ row: r, col: c });
-}
-break;
-}
-}
-}
-}
+    if (piece.type === 'K' && !piece.hasMoved) {
+      const side = piece.color;
+      if (castlingRights[side].K && !gameState[row][5] && !gameState[row][6] &&
+        gameState[row][7] && gameState[row][7].type === 'R' && !gameState[row][7].hasMoved) {
+        moves.push({ row, col: 6 });
+      }
+      if (castlingRights[side].Q && !gameState[row][1] && !gameState[row][2] && !gameState[row][3] &&
+        gameState[row][0] && gameState[row][0].type === 'R' && !gameState[row][0].hasMoved) {
+        moves.push({ row, col: 2 });
+      }
+    }
+  } else {
+    for (let [dr, dc] of directions[piece.type]) {
+      for (let i = 1; i < 8; i++) {
+        const r = row + dr * i, c = col + dc * i;
+        if (!isOnBoard(r, c)) break;
+        if (!gameState[r][c]) {
+          moves.push({ row: r, col: c });
+        } else {
+          if (gameState[r][c].color !== piece.color) {
+            moves.push({ row: r, col: c });
+          }
+          break;
+        }
+      }
+    }
+  }
 
-return moves;
+  return moves;
 }
-
-setupBoard();
-drawBoard();
 
 function downloadPGN() {
-const pgnHeader = `[Event "Khon's Chess Match"]
+  const pgnHeader = `[Event "Khon's Chess Match"]
 [Site "Khon's Bar"]
 [Date "${new Date().toISOString().split('T')[0]}"]
 [Round "-"]
@@ -411,47 +442,49 @@ const pgnHeader = `[Event "Khon's Chess Match"]
 
 `;
 
-const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
-const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
+  const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
+  const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
 
-const blob = new Blob([fullPGN], { type: 'text/plain' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = 'khons-chess-game.pgn';
-a.click();
-URL.revokeObjectURL(url);
+  const blob = new Blob([fullPGN], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'khons-chess-game.pgn';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function changeTheme(theme) {
+  currentTheme = theme;
+  drawBoard();
 }
 
 let showingQR = false;
 
-function changeTheme(theme) {
-  currentTheme = theme;
-  drawBoard(); // Re-render board with new sprites
-}
-  
 function toggleQR() {
-const logo = document.getElementById('logoImage');
-const overlay = document.getElementById('qrOverlay');
+  const logo = document.getElementById('logoImage');
+  const overlay = document.getElementById('qrOverlay');
 
-if (!showingQR) {
-logo.src = './khonschess-qr.png';
-overlay.style.display = 'flex'; // only show overlay on QR reveal
-setTimeout(() => {
-overlay.style.display = 'none';
-}, 3000);
-} else {
-logo.src = './kclogo.png';
-overlay.style.display = 'none'; // ensure overlay stays hidden when toggling back
-}
-showingQR = !showingQR;
+  if (!showingQR) {
+    logo.src = './khonschess-qr.png';
+    overlay.style.display = 'flex';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 3000);
+  } else {
+    logo.src = './kclogo.png';
+    overlay.style.display = 'none';
+  }
+  showingQR = !showingQR;
 }
 
 if ('serviceWorker' in navigator) {
-navigator.serviceWorker.register('./service-worker.js')
-.then(reg => console.log("✅ Service Worker Registered"))
-.catch(err => console.warn("❌ Service Worker Failed:", err));
+  navigator.serviceWorker.register('./service-worker.js')
+    .then(reg => console.log("✅ Service Worker Registered"))
+    .catch(err => console.warn("❌ Service Worker Failed:", err));
 }
+
+loadGame(); // ✅ Load from localStorage if available
 </script>
 </body>
 </html>
