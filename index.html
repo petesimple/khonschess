@@ -123,6 +123,14 @@ transform: translateY(4px);
 <img id="logoImage" src="./kclogo.png" alt="Khons Chess logo" class="logo">
 <div id="qrOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 2em; font-weight: bold; justify-content: center; align-items: center;">Share</div>
 </div>
+  <div style="margin: 10px;">
+  <label for="themeSelect">Theme:</label>
+  <select id="themeSelect" onchange="changeTheme(this.value)">
+    <option value="classic">Classic</option>
+    <option value="firefly">Firefly</option>
+    <!-- <option value="8bit">8-Bit</option> -->
+  </select>
+</div>
 <div id="chessboard"></div>
 <div id="moveLog" style="
   margin-top: 75px;
@@ -163,7 +171,8 @@ black: { K: true, Q: true }
 };
 let enPassantTarget = null;
 let pgnMoves = []; // store moves in [white, black] format per turn
-
+let currentTheme = 'classic'; // Default
+  
 function setupBoard() {
 for (let col = 0; col < 8; col++) {
 gameState[0][col] = { type: backRow[col], color: 'black', hasMoved: false };
@@ -174,7 +183,7 @@ gameState[7][col] = { type: backRow[col], color: 'white', hasMoved: false };
 }
 
 function getSpriteForPiece(piece) {
-return `${piece.color}-${piece.type.toLowerCase()}.png`;
+  return `pieces/${currentTheme}/${piece.color}-${piece.type.toLowerCase()}.png`;
 }
 
 function drawBoard() {
@@ -416,6 +425,11 @@ URL.revokeObjectURL(url);
 
 let showingQR = false;
 
+function changeTheme(theme) {
+  currentTheme = theme;
+  drawBoard(); // Re-render board with new sprites
+}
+  
 function toggleQR() {
 const logo = document.getElementById('logoImage');
 const overlay = document.getElementById('qrOverlay');
