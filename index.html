@@ -321,7 +321,7 @@ function drawBoard() {
 }
 
 function setupCheckersBoard() {
-  clearBoard();
+  //clearBoard(); // not needed
   gameState = Array(8).fill(null).map(() => Array(8).fill(null));
 
   for (let row = 0; row < 3; row++) {
