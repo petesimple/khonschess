@@ -186,7 +186,7 @@ document.getElementById('switchGameBtn').addEventListener('click', () => {
   if (confirm(`Switch to ${targetGame.charAt(0).toUpperCase() + targetGame.slice(1)}? This will reset the board.`)) {
     currentGame = targetGame;
     document.getElementById('switchGameBtn').textContent = `Switch to ${currentGame === 'chess' ? 'Checkers' : 'Chess'}`;
-    resetBoard();
+    resetGame();
   }
 });
 
