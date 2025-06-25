@@ -160,6 +160,7 @@ transform: translateY(4px);
   <button onclick="resetGame()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #900; color: #fff; border: 1px solid #f00;">
     🔁 Reset Game
   </button>
+    <button id="switchGameBtn">Switch to Checkers</button>
 </div>
 
 <script>
@@ -178,6 +179,16 @@ let castlingRights = {
 let enPassantTarget = null;
 let pgnMoves = [];
 let currentTheme = 'classic';
+let currentGame = 'chess'; // default
+
+document.getElementById('switchGameBtn').addEventListener('click', () => {
+  const targetGame = currentGame === 'chess' ? 'checkers' : 'chess';
+  if (confirm(`Switch to ${targetGame.charAt(0).toUpperCase() + targetGame.slice(1)}? This will reset the board.`)) {
+    currentGame = targetGame;
+    document.getElementById('switchGameBtn').textContent = `Switch to ${currentGame === 'chess' ? 'Checkers' : 'Chess'}`;
+    resetBoard();
+  }
+});
 
 function setupBoard() {
   for (let col = 0; col < 8; col++) {
@@ -219,7 +230,13 @@ function resetGame() {
     moveHistory = [];
     pgnMoves = [];
     currentPlayer = 'white';
-    setupBoard();
+
+    if (currentGame === 'chess') {
+      setupBoard(); // your existing chess setup
+    } else {
+      setupCheckersBoard(); // new function for checkers
+    }
+
     drawBoard();
   }
 }
@@ -239,6 +256,7 @@ function drawBoard() {
       square.dataset.row = row;
       square.dataset.col = col;
 
+      // Ranks and Files
       if (col === 0) {
         const rank = document.createElement('div');
         rank.className = 'rank-label';
@@ -258,7 +276,22 @@ function drawBoard() {
       const piece = gameState[row][col];
       if (piece) {
         const img = document.createElement('img');
-        img.src = getSpriteForPiece(piece);
+
+        // 🎯 DIFFERENTIATE PIECE IMAGE BY GAME TYPE
+        if (currentGame === 'chess') {
+          img.src = getSpriteForPiece(piece);
+        } else if (currentGame === 'checkers') {
+          // You can change these to your own assets
+          img.src = piece.color === 'white'
+            ? 'checkers-white.png'
+            : 'checkers-black.png';
+
+          // Optional: add crown icon if you support kinged pieces
+          if (piece.king) {
+            img.classList.add('king');
+          }
+        }
+
         square.appendChild(img);
       }
 
@@ -275,14 +308,36 @@ function drawBoard() {
     }
   }
 
-  // Update move log display after redraw
+  // 📝 Skip chess-style move log if playing checkers
   const logDiv = document.getElementById('moveLog');
-  logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
-    return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
-  }).join('<br>');
-  logDiv.scrollTop = logDiv.scrollHeight;
+  if (currentGame === 'chess') {
+    logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
+      return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
+    }).join('<br>');
+    logDiv.scrollTop = logDiv.scrollHeight;
+  } else {
+    logDiv.innerHTML = `<strong>Checkers Mode:</strong> Basic moves only (log coming soon)`;
+  }
 }
 
+function setupCheckersBoard() {
+  clearBoard();
+  gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 8; col++) {
+      if ((row + col) % 2 === 1) gameState[row][col] = { color: 'black' };
+    }
+  }
+  for (let row = 5; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      if ((row + col) % 2 === 1) gameState[row][col] = { color: 'white' };
+    }
+  }
+
+  drawBoard();
+}
+  
 function handleSquareClick(e) {
   const row = parseInt(e.currentTarget.dataset.row);
   const col = parseInt(e.currentTarget.dataset.col);
