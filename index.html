@@ -343,6 +343,51 @@ function handleSquareClick(e) {
   const col = parseInt(e.currentTarget.dataset.col);
   const clickedPiece = gameState[row][col];
 
+  // 🧩 CHECKERS LOGIC
+  if (currentGame === 'checkers') {
+    if (selectedSquare) {
+      if (legalMoves.some(m => m.row === row && m.col === col)) {
+        const from = selectedSquare;
+        const piece = gameState[from.row][from.col];
+        const move = legalMoves.find(m => m.row === row && m.col === col);
+
+        // Move the piece
+        gameState[row][col] = piece;
+        gameState[from.row][from.col] = null;
+
+        // Capture if jump
+        if (move.capture) {
+          const { row: capRow, col: capCol } = move.capture;
+          gameState[capRow][capCol] = null;
+        }
+
+        // King the piece if it reaches opposite side
+        if ((piece.color === 'white' && row === 0) || (piece.color === 'black' && row === 7)) {
+          piece.king = true;
+        }
+
+        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+        selectedSquare = null;
+        legalMoves = [];
+        drawBoard();
+        return;
+      } else {
+        selectedSquare = null;
+        legalMoves = [];
+        drawBoard();
+        return;
+      }
+    } else {
+      if (clickedPiece && clickedPiece.color === currentPlayer) {
+        selectedSquare = { row, col };
+        legalMoves = getCheckersLegalMoves(row, col, clickedPiece);
+        drawBoard();
+        return;
+      }
+    }
+  }
+
+  // ♟️ CHESS LOGIC (your existing code)
   if (selectedSquare) {
     if (legalMoves.some(m => m.row === row && m.col === col)) {
       const from = selectedSquare;
@@ -356,6 +401,7 @@ function handleSquareClick(e) {
         capture: gameState[row][col]
       };
 
+      // Castling logic
       if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
         const rookCol = col === 6 ? 7 : 0;
         const newRookCol = col === 6 ? 5 : 3;
@@ -364,6 +410,7 @@ function handleSquareClick(e) {
         gameState[row][rookCol] = null;
       }
 
+      // En passant
       if (piece.type === 'P' && col !== from.col && !move.capture) {
         move.capture = gameState[from.row][col];
         gameState[from.row][col] = null;
@@ -372,6 +419,7 @@ function handleSquareClick(e) {
       gameState[row][col] = { ...piece, hasMoved: true };
       gameState[from.row][from.col] = null;
 
+      // Pawn promotion
       if (piece.type === 'P' && (row === 0 || row === 7)) {
         gameState[row][col].type = 'Q';
       }
@@ -386,7 +434,7 @@ function handleSquareClick(e) {
       moveHistory.push(move);
       currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
 
-      saveGame(); // ✅ Save after move
+      saveGame();
     }
 
     selectedSquare = null;
