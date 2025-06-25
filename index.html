@@ -343,32 +343,21 @@ function handleSquareClick(e) {
   const col = parseInt(e.currentTarget.dataset.col);
   const clickedPiece = gameState[row][col];
 
-  // 🧩 CHECKERS LOGIC
+  // 🧩 CHECKERS LOGIC (with multi-jump support)
   if (currentGame === 'checkers') {
     if (selectedSquare) {
       if (legalMoves.some(m => m.row === row && m.col === col)) {
         const from = selectedSquare;
         const piece = gameState[from.row][from.col];
-        const move = legalMoves.find(m => m.row === row && m.col === col);
+        
+        const turnOver = makeCheckersMove(from.row, from.col, row, col, piece);
 
-        // Move the piece
-        gameState[row][col] = piece;
-        gameState[from.row][from.col] = null;
-
-        // Capture if jump
-        if (move.capture) {
-          const { row: capRow, col: capCol } = move.capture;
-          gameState[capRow][capCol] = null;
+        if (turnOver) {
+          currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+          selectedSquare = null;
+          legalMoves = [];
         }
 
-        // King the piece if it reaches opposite side
-        if ((piece.color === 'white' && row === 0) || (piece.color === 'black' && row === 7)) {
-          piece.king = true;
-        }
-
-        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-        selectedSquare = null;
-        legalMoves = [];
         drawBoard();
         return;
       } else {
@@ -387,7 +376,7 @@ function handleSquareClick(e) {
     }
   }
 
-  // ♟️ CHESS LOGIC (your existing code)
+  // ♟️ CHESS LOGIC (unchanged)
   if (selectedSquare) {
     if (legalMoves.some(m => m.row === row && m.col === col)) {
       const from = selectedSquare;
@@ -449,6 +438,39 @@ function handleSquareClick(e) {
   drawBoard();
 }
 
+  function makeCheckersMove(fromRow, fromCol, toRow, toCol, piece) {
+  const move = legalMoves.find(m => m.row === toRow && m.col === toCol);
+
+  gameState[toRow][toCol] = piece;
+  gameState[fromRow][fromCol] = null;
+
+  let captured = false;
+
+  // Handle capture
+  if (move.capture) {
+    const { row: capRow, col: capCol } = move.capture;
+    gameState[capRow][capCol] = null;
+    captured = true;
+  }
+
+  // King the piece if it reaches back row
+  if ((piece.color === 'white' && toRow === 0) || (piece.color === 'black' && toRow === 7)) {
+    piece.king = true;
+  }
+
+  // Check for further jumps
+  if (captured) {
+    const moreJumps = getCheckersLegalMoves(toRow, toCol, piece).filter(m => m.capture);
+    if (moreJumps.length > 0) {
+      selectedSquare = { row: toRow, col: toCol };
+      legalMoves = moreJumps;
+      return false; // More jumps available, stay on turn
+    }
+  }
+
+  return true; // Turn complete
+}
+
 function logMove(from, to, piece) {
   const files = ['a','b','c','d','e','f','g','h'];
   const fromNotation = files[from.col] + (8 - from.row);
@@ -463,6 +485,77 @@ function logMove(from, to, piece) {
   }
 }
 
+  function getCheckersLegalMoves(row, col, piece) {
+  const directions = [];
+
+  if (piece.color === 'white' || piece.king) directions.push([-1, -1], [-1, 1]);
+  if (piece.color === 'black' || piece.king) directions.push([1, -1], [1, 1]);
+
+  const moves = [];
+
+  for (const [dr, dc] of directions) {
+    const newRow = row + dr;
+    const newCol = col + dc;
+    const jumpRow = row + 2 * dr;
+    const jumpCol = col + 2 * dc;
+
+    // Basic move
+    if (isInBounds(newRow, newCol) && !gameState[newRow][newCol]) {
+      moves.push({ row: newRow, col: newCol });
+    }
+
+    // Jump capture
+    if (
+      isInBounds(jumpRow, jumpCol) &&
+      gameState[newRow][newCol] &&
+      gameState[newRow][newCol].color !== piece.color &&
+      !gameState[jumpRow][jumpCol]
+    ) {
+      moves.push({ row: jumpRow, col: jumpCol, capture: { row: newRow, col: newCol } });
+    }
+  }
+
+  return moves;
+}
+
+function isInBounds(row, col) {
+  return row >= 0 && row < 8 && col >= 0 && col < 8;
+}
+
+function makeCheckersMove(fromRow, fromCol, toRow, toCol, piece) {
+  const move = legalMoves.find(m => m.row === toRow && m.col === toCol);
+
+  gameState[toRow][toCol] = piece;
+  gameState[fromRow][fromCol] = null;
+
+  let captured = false;
+
+  // Handle capture
+  if (move.capture) {
+    const { row: capRow, col: capCol } = move.capture;
+    gameState[capRow][capCol] = null;
+    captured = true;
+  }
+
+  // King the piece if it reaches back row
+  if ((piece.color === 'white' && toRow === 0) || (piece.color === 'black' && toRow === 7)) {
+    piece.king = true;
+  }
+
+  // Check for further jumps
+  if (captured) {
+    const moreJumps = getCheckersLegalMoves(toRow, toCol, piece).filter(m => m.capture);
+    if (moreJumps.length > 0) {
+      selectedSquare = { row: toRow, col: toCol };
+      legalMoves = moreJumps;
+      drawBoard();
+      return false; // don't change turn
+    }
+  }
+
+  return true; // turn is over
+}
+  
 function getLegalMoves(row, col, piece) {
   const moves = [];
   const isOnBoard = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
