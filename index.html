@@ -521,39 +521,6 @@ function isInBounds(row, col) {
   return row >= 0 && row < 8 && col >= 0 && col < 8;
 }
 
-function makeCheckersMove(fromRow, fromCol, toRow, toCol, piece) {
-  const move = legalMoves.find(m => m.row === toRow && m.col === toCol);
-
-  gameState[toRow][toCol] = piece;
-  gameState[fromRow][fromCol] = null;
-
-  let captured = false;
-
-  // Handle capture
-  if (move.capture) {
-    const { row: capRow, col: capCol } = move.capture;
-    gameState[capRow][capCol] = null;
-    captured = true;
-  }
-
-  // King the piece if it reaches back row
-  if ((piece.color === 'white' && toRow === 0) || (piece.color === 'black' && toRow === 7)) {
-    piece.king = true;
-  }
-
-  // Check for further jumps
-  if (captured) {
-    const moreJumps = getCheckersLegalMoves(toRow, toCol, piece).filter(m => m.capture);
-    if (moreJumps.length > 0) {
-      selectedSquare = { row: toRow, col: toCol };
-      legalMoves = moreJumps;
-      drawBoard();
-      return false; // don't change turn
-    }
-  }
-
-  return true; // turn is over
-}
   
 function getLegalMoves(row, col, piece) {
   const moves = [];
