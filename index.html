@@ -607,7 +607,9 @@ function downloadPGN() {
 
 `;
 
-  const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
+  const pgnBody = pgnMoves
+  .map((pair, i) => `${i + 1}. ${pair[0]}${pair[1] ? ' ' + pair[1] : ''}`)
+  .join(' ');
   const fullPGN = pgnHeader + '\n' + pgnBody + ` ${gameResult}`;
 
   const blob = new Blob([fullPGN], { type: 'text/plain' });
