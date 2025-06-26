@@ -1,34 +1,93 @@
-# ♟️ Khon's Chess
+# ♟️ Khon's Chess (and Checkers!)
 
-Welcome to **Khon’s Chess** – a pixel-art, pass-and-play chess game made as a surprise for our friends at Khon’s Bar. This fun, custom-styled chessboard features motorcycles, Buicks, and zero pickles.
+> A pixel-powered bar game app for Chess **and** Checkers — with theme switching, auto-saves, and crawfish spirit 🦐
 
-## 🧠 Features
+---
 
-- ✅ Custom pixel-art pieces
-- ✅ Pass-and-play for two humans
-- ✅ PGN move logging + download
-- ✅ Rank/file labels (a-h, 1-8)
-- ✅ Responsive mobile layout
-- ✅ PWA ready (installable)
-- ✅ Built-in QR code share mode
-- 🚫 No pickles allowed
+## 🎮 Features
 
-## 🔗 Try It Live
+- ✅ **Play Chess or Checkers** on the same board
+- ✅ Full rule support:
+  - ♟️ Chess: castling, en passant, promotion, checkmate/stalemate detection
+  - 🔘 Checkers: multi-jumps, kinging, forced-move logic
+- 🎨 **Theme selector** with:
+  - `Classic`, `Firefly`, `Star Wars`, and `Star Trek`
+- 💾 **Autosaves** your game in localStorage
+- 📄 **PGN download** support for Chess
+- 📷 **QR code** toggle for easy sharing
+- 🌐 Offline-capable with PWA support
 
-[https://petesimple.github.io/khonschess/](https://petesimple.github.io/khonschess/)
+---
 
-## 📲 How to Install (PWA)
+## 🧠 Built With
 
-1. Visit the link in a modern browser (Chrome, Safari, Edge).
-2. Look for the "Add to Home Screen" prompt.
-3. Tap it. Boom. It's an app now.
+- **HTML5**
+- **Vanilla JavaScript**
+- **CSS3**
+- ❤️ Pure creativity, no frameworks
 
-## 🚀 Roadmap (maybe)
+---
 
-- 🤖 Optional AI opponent
-- 💡 Puzzle mode
-- 🎨 Alternate board themes
+## 🚀 Getting Started
 
-## 🤝 A Gift
+1. Clone or download this repo:
+   ```bash
+   git clone https://github.com/your-username/khons-chess.git
+   ```
+2. Open `index.html` in your browser.
+3. Start playing — no setup needed!
 
-Made with pixelated love for Khon’s bar regulars and chess nerds everywhere.
+---
+
+## 🗂️ Project Structure
+
+```
+khons-chess/
+├── index.html              # Main game logic and layout
+├── manifest.json           # PWA metadata
+├── service-worker.js       # Offline support
+├── pieces/                 # Theme-specific Chess piece sprites
+│   ├── classic/
+│   ├── firefly/
+│   ├── starwars/
+│   └── startrek/
+├── checkers-black.png      # Basic Checkers pieces
+├── checkers-white.png
+├── checkers-black-king.png
+├── checkers-white-king.png
+├── kclogo.png              # Default logo
+├── khonschess-qr.png       # QR overlay image
+└── README.md
+```
+
+---
+
+## 🧪 Customization
+
+- Add new piece art by dropping sprites into `/pieces/{theme}/`
+  - Format: `white-p.png`, `black-k.png`, etc.
+- Checkers uses the same assets as pawns and special kings
+- Customize themes or game logic directly in `index.html`
+
+---
+
+## 📜 Version
+
+**v1.0 — Crawfish Edition 🦐**  
+> First public release with full Chess + Checkers logic, win detection, theme switching, and PGN export
+
+---
+
+## 🙌 Credits
+
+- Developed by [Pete Lippincott](https://github.com/petesimple)
+- Inspired by the vibes of **Khon's Bar**, Houston, TX
+- Pixel art style nod to NES & arcade classics
+- Chess logic powered by coffee and intuition ☕♛
+
+---
+
+## 📬 Feedback
+
+Have a bug or feature request?  
+Open an issue or send us a telepathic crawfish 🧠🦐
