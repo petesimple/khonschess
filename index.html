@@ -281,15 +281,8 @@ function drawBoard() {
 if (currentGame === 'chess') {
   img.src = getSpriteForPiece(piece);
 } else if (currentGame === 'checkers') {
-  if (piece.king) {
-    img.src = piece.color === 'white'
-      ? 'checkers-white-king.png'
-      : 'checkers-black-king.png';
-  } else {
-    img.src = piece.color === 'white'
-      ? 'checkers-white.png'
-      : 'checkers-black.png';
-  }
+  const type = piece.king ? 'k' : 'p'; // 'p' = pawn, 'k' = king
+  img.src = `pieces/${currentTheme}/${piece.color}-${type}.png`;
 }
 
 square.appendChild(img);
