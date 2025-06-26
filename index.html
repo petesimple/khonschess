@@ -277,23 +277,22 @@ function drawBoard() {
       if (piece) {
         const img = document.createElement('img');
 
-        // 🎯 DIFFERENTIATE PIECE IMAGE BY GAME TYPE
-        if (currentGame === 'chess') {
-          img.src = getSpriteForPiece(piece);
-        } else if (currentGame === 'checkers') {
-          // You can change these to your own assets
-          img.src = piece.color === 'white'
-            ? 'checkers-white.png'
-            : 'checkers-black.png';
+       // 🎯 DIFFERENTIATE PIECE IMAGE BY GAME TYPE
+if (currentGame === 'chess') {
+  img.src = getSpriteForPiece(piece);
+} else if (currentGame === 'checkers') {
+  if (piece.king) {
+    img.src = piece.color === 'white'
+      ? 'checkers-white-king.png'
+      : 'checkers-black-king.png';
+  } else {
+    img.src = piece.color === 'white'
+      ? 'checkers-white.png'
+      : 'checkers-black.png';
+  }
+}
 
-          // Optional: add crown icon if you support kinged pieces
-          if (piece.king) {
-            img.classList.add('king');
-          }
-        }
-
-        square.appendChild(img);
-      }
+square.appendChild(img);
 
       if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
         square.classList.add('selected');
