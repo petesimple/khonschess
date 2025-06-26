@@ -603,12 +603,12 @@ function downloadPGN() {
 [Round "-"]
 [White "Player 1"]
 [Black "Player 2"]
-[Result "*"]
+[Result "${gameResult}"]
 
 `;
 
   const pgnBody = pgnMoves.map((pair, i) => `${i + 1}. ${pair[0]} ${pair[1]}`.trim()).join(' ');
-  const fullPGN = pgnHeader + '\n' + pgnBody + ' *';
+  const fullPGN = pgnHeader + '\n' + pgnBody + ` ${gameResult}`;
 
   const blob = new Blob([fullPGN], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
@@ -682,6 +682,7 @@ loadGame(); // ✅ Load from localStorage if available
         showGameOver(currentPlayer); // checkmate
       } else {
         alert("Stalemate! It's a draw.");
+        gameResult = "1/2-1/2";
         resetGame();
       }
     }
@@ -748,12 +749,15 @@ function isInCheck(color) {
   return false;
 }
   
-  function showGameOver(winner) {
+  let gameResult = "*"; // global
+
+function showGameOver(winner) {
+  gameResult = winner === 'white' ? "1-0" : "0-1";
   setTimeout(() => {
     if (confirm(`${winner} wins! 🎉 Play again?`)) {
       resetGame();
     }
-  }, 100); // delay to avoid interrupting current render
+  }, 100);
 }
   
 </script>
