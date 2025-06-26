@@ -355,6 +355,7 @@ function handleSquareClick(e) {
           currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
           selectedSquare = null;
           legalMoves = [];
+          checkForWin();
         }
 
         drawBoard();
@@ -423,8 +424,9 @@ function handleSquareClick(e) {
       currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
 
       saveGame();
+      checkForWin();
     }
-
+  
     selectedSquare = null;
     legalMoves = [];
   } else {
@@ -648,6 +650,112 @@ if ('serviceWorker' in navigator) {
 }
 
 loadGame(); // ✅ Load from localStorage if available
+  
+  //Check for win in Chess or Checkers 
+  function checkForWin() {
+  if (currentGame === 'chess') {
+    const enemyColor = currentPlayer === 'white' ? 'black' : 'white';
+    const allEnemyMoves = [];
+
+    let enemyKingExists = false;
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const piece = gameState[row][col];
+        if (piece && piece.color === enemyColor) {
+          if (piece.type === 'K') enemyKingExists = true;
+
+          const moves = getLegalMoves(row, col, piece);
+          if (moves.length > 0) {
+            allEnemyMoves.push(...moves);
+          }
+        }
+      }
+    }
+
+    if (!enemyKingExists) {
+      showGameOver(currentPlayer); // This player captured the enemy king
+    } else if (allEnemyMoves.length === 0) {
+      // No legal moves available = checkmate or stalemate
+      const inCheck = isInCheck(enemyColor);
+      if (inCheck) {
+        showGameOver(currentPlayer); // checkmate
+      } else {
+        alert("Stalemate! It's a draw.");
+        resetGame();
+      }
+    }
+  }
+
+  if (currentGame === 'checkers') {
+    // (Checkers win logic remains the same)
+    let whiteCount = 0;
+    let blackCount = 0;
+    let whiteMoves = 0;
+    let blackMoves = 0;
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const piece = gameState[row][col];
+        if (!piece) continue;
+
+        if (piece.color === 'white') {
+          whiteCount++;
+          whiteMoves += getCheckersLegalMoves(row, col, piece).length;
+        }
+
+        if (piece.color === 'black') {
+          blackCount++;
+          blackMoves += getCheckersLegalMoves(row, col, piece).length;
+        }
+      }
+    }
+
+    if (whiteCount === 0 || whiteMoves === 0) showGameOver('Black');
+    if (blackCount === 0 || blackMoves === 0) showGameOver('White');
+  }
+}
+
+function isInCheck(color) {
+  let kingRow = -1, kingCol = -1;
+
+  // Find king's position
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState[row][col];
+      if (piece && piece.color === color && piece.type === 'K') {
+        kingRow = row;
+        kingCol = col;
+        break;
+      }
+    }
+  }
+
+  // Check if any opposing piece can move to king's square
+  const opponent = color === 'white' ? 'black' : 'white';
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState[row][col];
+      if (piece && piece.color === opponent) {
+        const moves = getLegalMoves(row, col, piece);
+        if (moves.some(m => m.row === kingRow && m.col === kingCol)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+  
+  function showGameOver(winner) {
+  setTimeout(() => {
+    if (confirm(`${winner} wins! 🎉 Play again?`)) {
+      resetGame();
+    }
+  }, 100); // delay to avoid interrupting current render
+}
+  
 </script>
 </body>
 </html>
