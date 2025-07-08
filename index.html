@@ -163,7 +163,12 @@ transform: translateY(4px);
   <button onclick="resetGame()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #900; color: #fff; border: 1px solid #f00;">
     🔁 Reset Game
   </button>
-    <button id="switchGameBtn">Switch to Checkers</button>
+    <label for="gameSelect">Game:</label>
+<select id="gameSelect">
+  <option value="chess">Chess</option>
+  <option value="checkers">Checkers</option>
+  <option value="backgammon">Backgammon</option>
+</select>
 </div>
 
 <script>
@@ -229,28 +234,96 @@ function loadGame() {
 function resetGame() {
   if (confirm("Do you really want to reset the game?")) {
     localStorage.removeItem('khonsChessSave');
-    gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+    gameState = null;
     moveHistory = [];
     pgnMoves = [];
     currentPlayer = 'white';
 
     if (currentGame === 'chess') {
-      setupBoard(); // your existing chess setup
-    } else {
-      setupCheckersBoard(); // new function for checkers
+      gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+      setupBoard();
+    } else if (currentGame === 'checkers') {
+      gameState = Array(8).fill(null).map(() => Array(8).fill(null));
+      setupCheckersBoard();
+    } else if (currentGame === 'backgammon') {
+      setupBackgammonBoard();
     }
 
     drawBoard();
   }
 }
 
+function setupBackgammonBoard() {
+  // In Backgammon, gameState will be an array of 24 points
+  gameState = Array(24).fill(null).map(() => ({ white: 0, black: 0 }));
+  
+  // Example starting positions (standard setup)
+  gameState[0].black = 2;
+  gameState[11].black = 5;
+  gameState[16].black = 3;
+  gameState[18].black = 5;
+
+  gameState[23].white = 2;
+  gameState[12].white = 5;
+  gameState[7].white = 3;
+  gameState[5].white = 5;
+}
+  
 function getSpriteForPiece(piece) {
   return `pieces/${currentTheme}/${piece.color}-${piece.type.toLowerCase()}.png`;
 }
 
 function drawBoard() {
   board.innerHTML = '';
+
+  if (currentGame === 'backgammon') {
+    // Backgammon layout
+    board.style.display = 'flex';
+    board.style.flexWrap = 'wrap';
+    board.style.justifyContent = 'center';
+    board.style.maxWidth = '600px';
+
+    for (let i = 0; i < 24; i++) {
+      const point = document.createElement('div');
+      point.style.width = '12.5%';
+      point.style.height = '80px';
+      point.style.border = '1px solid #888';
+      point.style.display = 'flex';
+      point.style.flexDirection = 'column';
+      point.style.justifyContent = 'flex-end';
+      point.style.alignItems = 'center';
+      point.style.background = (i % 2 === 0) ? '#444' : '#eee';
+      point.dataset.index = i;
+
+      const countWhite = gameState[i].white;
+      const countBlack = gameState[i].black;
+
+      if (countWhite > 0) {
+        const checker = document.createElement('div');
+        checker.textContent = `⚪️ ×${countWhite}`;
+        checker.style.fontSize = '0.8em';
+        point.appendChild(checker);
+      }
+      if (countBlack > 0) {
+        const checker = document.createElement('div');
+        checker.textContent = `⚫️ ×${countBlack}`;
+        checker.style.fontSize = '0.8em';
+        point.appendChild(checker);
+      }
+
+      board.appendChild(point);
+    }
+
+    // Update move log
+    document.getElementById('moveLog').innerHTML = `<strong>Backgammon Mode:</strong><br>Dice and moves coming soon.`;
+    return; // Stop here for backgammon
+  }
+
+  // For Chess and Checkers
   const files = ['a','b','c','d','e','f','g','h'];
+  board.style.display = 'grid';
+  board.style.gridTemplateColumns = 'repeat(8, 1fr)';
+  board.style.aspectRatio = '1 / 1';
 
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
@@ -259,7 +332,7 @@ function drawBoard() {
       square.dataset.row = row;
       square.dataset.col = col;
 
-      // Ranks and Files
+      // Rank and file labels
       if (col === 0) {
         const rank = document.createElement('div');
         rank.className = 'rank-label';
@@ -267,7 +340,6 @@ function drawBoard() {
         rank.textContent = 8 - row;
         square.appendChild(rank);
       }
-
       if (row === 7) {
         const file = document.createElement('div');
         file.className = 'file-label';
@@ -279,21 +351,18 @@ function drawBoard() {
       const piece = gameState[row][col];
       if (piece) {
         const img = document.createElement('img');
+        if (currentGame === 'chess') {
+          img.src = getSpriteForPiece(piece);
+        } else if (currentGame === 'checkers') {
+          const type = piece.king ? 'k' : 'p';
+          img.src = `pieces/${currentTheme}/${piece.color}-${type}.png`;
+        }
+        square.appendChild(img);
+      }
 
-       // 🎯 DIFFERENTIATE PIECE IMAGE BY GAME TYPE
-if (currentGame === 'chess') {
-  img.src = getSpriteForPiece(piece);
-} else if (currentGame === 'checkers') {
-  const type = piece.king ? 'k' : 'p'; // 'p' = pawn, 'k' = king
-  img.src = `pieces/${currentTheme}/${piece.color}-${type}.png`;
-}
-
-square.appendChild(img);
-}
       if (selectedSquare && selectedSquare.row == row && selectedSquare.col == col) {
         square.classList.add('selected');
       }
-
       if (legalMoves.some(m => m.row === row && m.col === col)) {
         square.classList.add('highlight');
       }
@@ -303,14 +372,14 @@ square.appendChild(img);
     }
   }
 
-  // 📝 Skip chess-style move log if playing checkers
+  // Move log
   const logDiv = document.getElementById('moveLog');
   if (currentGame === 'chess') {
     logDiv.innerHTML = `<strong>Move Log:</strong><br>` + pgnMoves.map((pair, i) => {
       return `${i + 1}. ${pair[0]} ${pair[1]}`.trim();
     }).join('<br>');
     logDiv.scrollTop = logDiv.scrollHeight;
-  } else {
+  } else if (currentGame === 'checkers') {
     logDiv.innerHTML = `<strong>Checkers Mode:</strong> Basic moves only (log coming soon)`;
   }
 }
@@ -757,6 +826,18 @@ function showGameOver(winner) {
     }
   }, 100);
 }
+
+  document.getElementById('gameSelect').addEventListener('change', (e) => {
+  const newGame = e.target.value;
+  if (newGame !== currentGame) {
+    if (confirm(`Switch to ${newGame}? This will reset the board.`)) {
+      currentGame = newGame;
+      resetGame();
+    } else {
+      e.target.value = currentGame;
+    }
+  }
+});
   
 </script>
   <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
