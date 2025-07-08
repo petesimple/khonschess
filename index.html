@@ -276,49 +276,47 @@ function drawBoard() {
   board.innerHTML = '';
 
   if (currentGame === 'backgammon') {
-    // Show controls
-    document.getElementById('backgammonControls').style.display = 'block';
-    
-    // Backgammon layout
-    board.style.display = 'flex';
-    board.style.flexWrap = 'wrap';
-    board.style.justifyContent = 'center';
-    board.style.maxWidth = '600px';
+    // Show Backgammon controls
+document.getElementById('backgammonControls').style.display = 'block';
 
-    for (let i = 0; i < 24; i++) {
-      const point = document.createElement('div');
-      point.style.width = '12.5%';
-      point.style.height = '80px';
-      point.style.border = '1px solid #888';
-      point.style.display = 'flex';
-      point.style.flexDirection = 'column';
-      point.style.justifyContent = 'flex-end';
-      point.style.alignItems = 'center';
-      point.style.background = (i % 2 === 0) ? '#444' : '#eee';
-      point.dataset.index = i;
+// Clear and set up container
+board.innerHTML = '';
+board.style.display = 'flex';
+board.style.flexDirection = 'column';
+board.style.flexWrap = 'nowrap';
+board.style.alignItems = 'center';
+board.style.maxWidth = '720px';
 
-      const countWhite = gameState[i].white;
-      const countBlack = gameState[i].black;
+// Row 1 (points 12 to 1)
+const topRow = document.createElement('div');
+topRow.style.display = 'flex';
+topRow.style.width = '100%';
+topRow.style.justifyContent = 'space-between';
 
-      if (countWhite > 0) {
-        const checker = document.createElement('div');
-        checker.textContent = `⚪️ ×${countWhite}`;
-        checker.style.fontSize = '0.8em';
-        point.appendChild(checker);
-      }
-      if (countBlack > 0) {
-        const checker = document.createElement('div');
-        checker.textContent = `⚫️ ×${countBlack}`;
-        checker.style.fontSize = '0.8em';
-        point.appendChild(checker);
-      }
+for (let i = 11; i >= 0; i--) {
+  const point = createBackgammonPoint(i);
+  topRow.appendChild(point);
+}
 
-      board.appendChild(point);
-    }
+// Row 2 (points 13 to 24)
+const bottomRow = document.createElement('div');
+bottomRow.style.display = 'flex';
+bottomRow.style.width = '100%';
+bottomRow.style.justifyContent = 'space-between';
 
-    // Update move log
-    document.getElementById('moveLog').innerHTML = `<strong>Backgammon Mode:</strong><br>Dice and moves coming soon.`;
-    return; // Stop here for backgammon
+for (let i = 12; i < 24; i++) {
+  const point = createBackgammonPoint(i);
+  bottomRow.appendChild(point);
+}
+
+// Append rows to board
+board.appendChild(topRow);
+board.appendChild(bottomRow);
+
+// Update move log
+document.getElementById('moveLog').innerHTML = `<strong>Backgammon Mode:</strong><br>Dice and moves coming soon.`;
+
+return;
   }
 
 // ✅ For Chess and Checkers, hide Backgammon controls
@@ -874,10 +872,50 @@ document.getElementById('rollDiceBtn').addEventListener('click', () => {
     display.textContent = "Dice: " + unused.join(", ");
   }
 }
+
+  function createBackgammonPoint(index) {
+  const point = document.createElement('div');
+  point.style.width = '8%';
+  point.style.height = '100px';
+  point.style.border = '1px solid #888';
+  point.style.display = 'flex';
+  point.style.flexDirection = 'column';
+  point.style.justifyContent = 'flex-end';
+  point.style.alignItems = 'center';
+  point.style.background = (index % 2 === 0) ? '#444' : '#eee';
+  point.dataset.index = index;
+
+  // Label
+  const label = document.createElement('div');
+  label.textContent = (index + 1);
+  label.style.fontSize = '0.7em';
+  label.style.opacity = '0.5';
+  point.appendChild(label);
+
+  // Checker counts
+  const countWhite = gameState[index].white;
+  const countBlack = gameState[index].black;
+
+  if (countWhite > 0) {
+    const checker = document.createElement('div');
+    checker.textContent = `⚪️ ×${countWhite}`;
+    checker.style.fontSize = '0.8em';
+    point.appendChild(checker);
+  }
+  if (countBlack > 0) {
+    const checker = document.createElement('div');
+    checker.textContent = `⚫️ ×${countBlack}`;
+    checker.style.fontSize = '0.8em';
+    point.appendChild(checker);
+  }
+
+  point.addEventListener('click', handleBackgammonClick);
+  return point;
+}
   
 </script>
   <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 1.0 (crawfish)
+  Version 2.0 (Vivens)
 </div>
 </body>
 </html>
