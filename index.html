@@ -136,6 +136,10 @@ transform: translateY(4px);
   </select>
 </div>
 <div id="chessboard"></div>
+  <div id="backgammonControls" style="display:none; margin-top:10px;">
+  <button id="rollDiceBtn" style="padding:6px 12px; font-size:1em;">🎲 Roll Dice</button>
+  <div id="diceDisplay" style="margin-top:6px; font-size:1.2em; color:#0f0;"></div>
+</div>
 <div id="moveLog" style="
   margin-top: 75px;
  width: 90vw;
@@ -188,6 +192,9 @@ let enPassantTarget = null;
 let pgnMoves = [];
 let currentTheme = 'classic';
 let currentGame = 'chess'; // default
+
+let diceRoll = [];
+let diceUsed = [];
 
 
 function setupBoard() {
@@ -269,6 +276,9 @@ function drawBoard() {
   board.innerHTML = '';
 
   if (currentGame === 'backgammon') {
+    // Show controls
+    document.getElementById('backgammonControls').style.display = 'block';
+    
     // Backgammon layout
     board.style.display = 'flex';
     board.style.flexWrap = 'wrap';
@@ -311,6 +321,9 @@ function drawBoard() {
     return; // Stop here for backgammon
   }
 
+// ✅ For Chess and Checkers, hide Backgammon controls
+  document.getElementById('backgammonControls').style.display = 'none';
+  
   // For Chess and Checkers
   const files = ['a','b','c','d','e','f','g','h'];
   board.style.display = 'grid';
@@ -830,6 +843,37 @@ function showGameOver(winner) {
     }
   }
 });
+
+document.getElementById('rollDiceBtn').addEventListener('click', () => {
+  if (diceRoll.length > 0) {
+    alert("You already rolled.");
+    return;
+  }
+
+  const die1 = Math.ceil(Math.random() * 6);
+  const die2 = Math.ceil(Math.random() * 6);
+
+  if (die1 === die2) {
+    diceRoll = [die1, die1, die1, die1]; // doubles
+  } else {
+    diceRoll = [die1, die2];
+  }
+  diceUsed = [];
+
+  updateDiceDisplay();
+});
+
+  function updateDiceDisplay() {
+  if (currentGame !== 'backgammon') return;
+
+  const display = document.getElementById('diceDisplay');
+  if (diceRoll.length === 0) {
+    display.textContent = "No roll yet.";
+  } else {
+    const unused = diceRoll.filter((d, i) => !diceUsed.includes(i));
+    display.textContent = "Dice: " + unused.join(", ");
+  }
+}
   
 </script>
   <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
