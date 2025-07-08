@@ -189,14 +189,6 @@ let pgnMoves = [];
 let currentTheme = 'classic';
 let currentGame = 'chess'; // default
 
-document.getElementById('switchGameBtn').addEventListener('click', () => {
-  const targetGame = currentGame === 'chess' ? 'checkers' : 'chess';
-  if (confirm(`Switch to ${targetGame.charAt(0).toUpperCase() + targetGame.slice(1)}? This will reset the board.`)) {
-    currentGame = targetGame;
-    document.getElementById('switchGameBtn').textContent = `Switch to ${currentGame === 'chess' ? 'Checkers' : 'Chess'}`;
-    resetGame();
-  }
-});
 
 function setupBoard() {
   for (let col = 0; col < 8; col++) {
