@@ -1,17 +1,19 @@
-# ♟️ Khon's Chess (and Checkers!)
+# ♟️ Khon's Chess, Checkers & Backgammon!
 
-> A pixel-powered bar game app for Chess **and** Checkers — with theme switching, auto-saves, and crawfish spirit 🦐
+> A pixel-powered bar game app for Chess, Checkers, **and Backgammon** — with theme switching, auto-saves, and crawfish spirit 🦐
 
 ---
 
 ## 🎮 Features
 
-- ✅ **Play Chess or Checkers** on the same board
+- ✅ **Play Chess, Checkers, or Backgammon** on the same app
 - ✅ Full rule support:
   - ♟️ Chess: castling, en passant, promotion, checkmate/stalemate detection
   - 🔘 Checkers: multi-jumps, kinging, forced-move logic
+  - 🎲 Backgammon: dice rolls, hitting (capturing), bar re-entry, bearing off
 - 🎨 **Theme selector** with:
-  - `Classic`, `Firefly`, `Star Wars`, and `Star Trek`
+  - `Classic`, `Firefly`, `Star Wars`, `Star Trek`, and more
+- 🐷 **Custom sprites** — including pig checkers for Backgammon
 - 💾 **Autosaves** your game in localStorage
 - 📄 **PGN download** support for Chess
 - 📷 **QR code** toggle for easy sharing
@@ -32,21 +34,16 @@
 
 1. Clone or download this repo:
    ```bash
-   git clone https://github.com/your-username/khons-chess.git
-   ```
-2. Open `index.html` in your browser.
-3. Start playing — no setup needed!
+   git clone https://github.com/petesimple/khons-chess.git
 
----
+   2.	Open index.html in your browser.
+	3.	Start playing — no setup needed!
 
-## 🗂️ Project Structure
-
-```
-khons-chess/
+   khons-chess/
 ├── index.html              # Main game logic and layout
 ├── manifest.json           # PWA metadata
 ├── service-worker.js       # Offline support
-├── pieces/                 # Theme-specific Chess piece sprites
+├── pieces/                 # Theme-specific sprites (Chess & Backgammon)
 │   ├── classic/
 │   ├── firefly/
 │   ├── starwars/
@@ -58,36 +55,34 @@ khons-chess/
 ├── kclogo.png              # Default logo
 ├── khonschess-qr.png       # QR overlay image
 └── README.md
-```
 
----
+🧪 Customization
+	•	Add new piece art by dropping sprites into /pieces/{theme}/
+	•	Chess format: white-p.png, black-k.png, etc.
+	•	Backgammon format: white-pig.png, black-pig.png
+	•	Checkers uses the same assets as pawns and special kings
+	•	Customize themes, board styles, or game logic directly in index.html
 
-## 🧪 Customization
+⸻
 
-- Add new piece art by dropping sprites into `/pieces/{theme}/`
-  - Format: `white-p.png`, `black-k.png`, etc.
-- Checkers uses the same assets as pawns and special kings
-- Customize themes or game logic directly in `index.html`
+📜 Version
 
----
+v2.4 — (Jazz) 
 
-## 📜 Version
+Adds Backgammon support with dice rolls, hitting, re-entry, bearing off, and pig checker sprites
 
-**v1.0 — Crawfish Edition 🦐**  
-> First public release with full Chess + Checkers logic, win detection, theme switching, and PGN export
+⸻
 
----
+🙌 Credits
+	•	Developed by Pete Lippincott
+	•	Inspired by the vibes of Khon’s Bar, Houston, TX
+	•	Pixel art style nod to NES & arcade classics
+	•	Chess & Backgammon logic powered by coffee and intuition ☕♛
 
-## 🙌 Credits
+⸻
 
-- Developed by [Pete Lippincott](https://github.com/petesimple)
-- Inspired by the vibes of **Khon's Bar**, Houston, TX
-- Pixel art style nod to NES & arcade classics
-- Chess logic powered by coffee and intuition ☕♛
+📬 Feedback
 
----
-
-## 📬 Feedback
-
-Have a bug or feature request?  
+Have a bug or feature request?
 Open an issue or send us a telepathic crawfish 🧠🦐
+
