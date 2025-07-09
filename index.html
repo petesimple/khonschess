@@ -963,6 +963,14 @@ function handleBackgammonClick(e) {
   updateDiceDisplay();
   drawBoard();
 }
+
+  function getBackgammonMoveDistance(from, to) {
+  if (currentPlayer === 'white') {
+    return from - to;
+  } else {
+    return to - from;
+  }
+}
   
 </script>
   <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
