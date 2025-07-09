@@ -115,6 +115,14 @@ left: -1.2em;
 top: 100%;
 transform: translateY(4px);
 }
+
+.bg-selected {
+  outline: 3px solid yellow;
+}
+.bg-highlight {
+  box-shadow: inset 0 0 0 3px lime;
+}
+  
 </style>
 </head>
 <body>
@@ -918,7 +926,7 @@ function handleBackgammonClick(e) {
   const index = parseInt(e.currentTarget.dataset.index);
   const point = gameState[index];
 
-  // If no dice rolled, cannot move
+  // If no dice rolled
   if (diceRoll.length === 0) {
     alert("Roll dice first!");
     return;
@@ -926,20 +934,17 @@ function handleBackgammonClick(e) {
 
   // If nothing selected yet
   if (selectedPoint === null) {
-    // Must pick your own checker
     if (point[currentPlayer] > 0) {
       selectedPoint = index;
-      alert(`Selected point ${index + 1}. Now click destination.`);
+      highlightAvailableDestinations(index);
     } else {
       alert("No checkers here to move.");
     }
     return;
   }
 
-  // Calculate move distance
+  // Moving to destination
   const distance = getBackgammonMoveDistance(selectedPoint, index);
-
-  // Validate move distance against dice
   const dieIndex = diceRoll.findIndex((d, i) => !diceUsed.includes(i) && d === distance);
   if (dieIndex === -1) {
     alert(`Invalid move: No die matches this distance (${distance}).`);
@@ -957,7 +962,7 @@ function handleBackgammonClick(e) {
   if (diceUsed.length === diceRoll.length) {
     diceRoll = [];
     diceUsed = [];
-    currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+    currentPlayer = (currentPlayer === 'white') ? 'black' : 'white';
     alert(`Turn over. ${currentPlayer}'s turn.`);
   }
 
@@ -971,6 +976,32 @@ function handleBackgammonClick(e) {
   } else {
     return to - from;
   }
+}
+
+  function highlightAvailableDestinations(fromIndex) {
+  // Clear any existing highlights
+  drawBoard();
+
+  // Highlight selected point
+  const allPoints = board.querySelectorAll('div[data-index]');
+  allPoints.forEach(pt => {
+    if (parseInt(pt.dataset.index) === fromIndex) {
+      pt.classList.add('bg-selected');
+    }
+  });
+
+  // Highlight legal destinations
+  diceRoll.forEach((die, i) => {
+    if (diceUsed.includes(i)) return;
+
+    const toIndex = currentPlayer === 'white' ? fromIndex - die : fromIndex + die;
+    if (toIndex >= 0 && toIndex < 24) {
+      const destPoint = board.querySelector(`div[data-index="${toIndex}"]`);
+      if (destPoint) {
+        destPoint.classList.add('bg-highlight');
+      }
+    }
+  });
 }
   
 </script>
