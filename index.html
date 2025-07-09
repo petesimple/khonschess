@@ -204,6 +204,10 @@ let currentGame = 'chess'; // default
 let diceRoll = [];
 let diceUsed = [];
 let selectedPoint = null;
+let bar = {
+  white: 0,
+  black: 0
+};
 
 
 function setupBoard() {
@@ -934,6 +938,45 @@ function handleBackgammonClick(e) {
 
   // If nothing selected yet
   if (selectedPoint === null) {
+    // If you have checkers on the bar, you must re-enter
+    if (bar[currentPlayer] > 0) {
+      const entryRange = currentPlayer === 'white' ? [18, 23] : [0, 5];
+      if (!entryRange.includes(index)) {
+        alert("You must re-enter on the opponent's home board.");
+        return;
+      }
+      // Check if legal
+      const opponentCount = point[currentPlayer === 'white' ? 'black' : 'white'];
+      if (opponentCount > 1) {
+        alert("Cannot re-enter here, blocked.");
+        return;
+      }
+      // Re-enter from bar
+      bar[currentPlayer]--;
+      point[currentPlayer]++;
+      drawBoard();
+      alert(`Re-entered from bar to point ${index + 1}.`);
+      // Consume die (must match distance)
+      const distance = currentPlayer === 'white' ? 23 - index : index;
+      const dieIndex = diceRoll.findIndex((d, i) => !diceUsed.includes(i) && d === distance + 1);
+      if (dieIndex === -1) {
+        alert(`Invalid die for re-entry.`);
+        return;
+      }
+      diceUsed.push(dieIndex);
+
+      // If all dice used, switch turn
+      if (diceUsed.length === diceRoll.length) {
+        diceRoll = [];
+        diceUsed = [];
+        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+        alert(`Turn over. ${currentPlayer}'s turn.`);
+      }
+      updateDiceDisplay();
+      return;
+    }
+
+    // Normal selection
     if (point[currentPlayer] > 0) {
       selectedPoint = index;
       highlightAvailableDestinations(index);
@@ -951,6 +994,21 @@ function handleBackgammonClick(e) {
     return;
   }
 
+  const opponent = currentPlayer === 'white' ? 'black' : 'white';
+  const opponentCount = point[opponent];
+
+  if (opponentCount > 1) {
+    alert("Cannot land here, blocked by opponent.");
+    return;
+  }
+
+  // Hit if one opponent checker
+  if (opponentCount === 1) {
+    point[opponent] = 0;
+    bar[opponent]++;
+    alert(`Hit opponent checker!`);
+  }
+
   // Perform the move
   gameState[selectedPoint][currentPlayer]--;
   gameState[index][currentPlayer]++;
@@ -962,7 +1020,7 @@ function handleBackgammonClick(e) {
   if (diceUsed.length === diceRoll.length) {
     diceRoll = [];
     diceUsed = [];
-    currentPlayer = (currentPlayer === 'white') ? 'black' : 'white';
+    currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
     alert(`Turn over. ${currentPlayer}'s turn.`);
   }
 
