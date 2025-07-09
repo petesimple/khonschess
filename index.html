@@ -915,18 +915,27 @@ document.getElementById('rollDiceBtn').addEventListener('click', () => {
   const countWhite = gameState[index].white;
   const countBlack = gameState[index].black;
 
-  if (countWhite > 0) {
-    const checker = document.createElement('div');
-    checker.textContent = `⚪️ ×${countWhite}`;
-    checker.style.fontSize = '0.8em';
-    point.appendChild(checker);
+  // Show white checkers
+if (countWhite > 0) {
+  for (let i = 0; i < countWhite; i++) {
+    const img = document.createElement('img');
+    img.src = `pieces/${currentTheme}/white-pig.png`;
+    img.style.width = '80%';
+    img.style.marginBottom = '2px';
+    point.appendChild(img);
   }
-  if (countBlack > 0) {
-    const checker = document.createElement('div');
-    checker.textContent = `⚫️ ×${countBlack}`;
-    checker.style.fontSize = '0.8em';
-    point.appendChild(checker);
+}
+
+// Show black checkers
+if (countBlack > 0) {
+  for (let i = 0; i < countBlack; i++) {
+    const img = document.createElement('img');
+    img.src = `pieces/${currentTheme}/black-pig.png`;
+    img.style.width = '80%';
+    img.style.marginBottom = '2px';
+    point.appendChild(img);
   }
+}
 
   point.addEventListener('click', handleBackgammonClick);
   return point;
