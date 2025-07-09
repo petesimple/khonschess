@@ -914,7 +914,54 @@ document.getElementById('rollDiceBtn').addEventListener('click', () => {
 }
 
 function handleBackgammonClick(e) {
-  alert("Clicking points will be interactive soon!");
+  const index = parseInt(e.currentTarget.dataset.index);
+  const point = gameState[index];
+
+  // If no dice rolled, cannot move
+  if (diceRoll.length === 0) {
+    alert("Roll dice first!");
+    return;
+  }
+
+  // If nothing selected yet
+  if (selectedPoint === null) {
+    // Must pick your own checker
+    if (point[currentPlayer] > 0) {
+      selectedPoint = index;
+      alert(`Selected point ${index + 1}. Now click destination.`);
+    } else {
+      alert("No checkers here to move.");
+    }
+    return;
+  }
+
+  // Calculate move distance
+  const distance = getBackgammonMoveDistance(selectedPoint, index);
+
+  // Validate move distance against dice
+  const dieIndex = diceRoll.findIndex((d, i) => !diceUsed.includes(i) && d === distance);
+  if (dieIndex === -1) {
+    alert(`Invalid move: No die matches this distance (${distance}).`);
+    return;
+  }
+
+  // Perform the move
+  gameState[selectedPoint][currentPlayer]--;
+  gameState[index][currentPlayer]++;
+
+  diceUsed.push(dieIndex);
+  selectedPoint = null;
+
+  // Check if all dice used
+  if (diceUsed.length === diceRoll.length) {
+    diceRoll = [];
+    diceUsed = [];
+    currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+    alert(`Turn over. ${currentPlayer}'s turn.`);
+  }
+
+  updateDiceDisplay();
+  drawBoard();
 }
   
 </script>
