@@ -128,44 +128,54 @@ transform: translateY(4px);
   flex-direction: column;
   width: 90vw;
   max-width: 800px;
+  height: 500px; /* 👈 fixed height for clarity */
   margin: auto;
+  border: 2px solid #fff;
+  box-sizing: border-box;
 }
 
 .bg-row {
   display: flex;
   justify-content: space-between;
+  flex: 1 1 0; /* Each row takes 50% of height */
+  position: relative;
 }
 
 .bg-point {
   position: relative;
-  width: 8.33%; /* 100/12 */
+  width: calc(100% / 12);
+  height: 100%;
   cursor: pointer;
 }
 
 .bg-point::before {
   content: "";
-  display: block;
-  padding-top: 200%; /* Height of triangle */
-  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
   background: #eee;
-  border: 1px solid #444;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  border: 1px solid #333;
 }
 
 .bg-row.top .bg-point::before {
-  transform: rotate(180deg);
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
 }
 
 .bg-point:nth-child(odd)::before {
-  background: #444;
+  background: #555;
 }
 .bg-point:nth-child(even)::before {
-  background: #eee;
+  background: #ccc;
 }
 
-/* Checker container to stack pieces inside triangles */
+/* Checkers inside points */
 .bg-checkers {
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
@@ -176,10 +186,14 @@ transform: translateY(4px);
   pointer-events: none;
 }
 
+.bg-row.top .bg-checkers {
+  justify-content: flex-start;
+}
+
 .bg-checkers img {
   width: 80%;
-  margin-bottom: 2px;
-}  
+  margin: 2px 0;
+}
   
 </style>
 </head>
