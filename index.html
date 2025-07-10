@@ -194,6 +194,52 @@ transform: translateY(4px);
   width: 80%;
   margin: 2px 0;
 }
+  /* fixed board */
+  .backgammon-board {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  height: 500px;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+
+.bg-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  flex: 1 1 0;
+}
+
+.bg-point {
+  position: relative;
+  flex: 1 1 0; /* 👈 each gets 1/12 of the row width */
+  height: 100%;
+}
+
+.bg-point::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #eee;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  border: 1px solid #333;
+}
+
+.bg-row.top .bg-point::before {
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+}
+
+.bg-point:nth-child(odd)::before {
+  background: #555;
+}
+.bg-point:nth-child(even)::before {
+  background: #ccc;
+}
   
 </style>
 </head>
@@ -216,6 +262,36 @@ transform: translateY(4px);
   </select>
 </div>
 <div id="chessboard"></div>
+  <div class="backgammon-board">
+  <div class="bg-row top">
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+  </div>
+  <div class="bg-row bottom">
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+    <div class="bg-point"></div>
+  </div>
+</div>
   <div id="backgammonControls" style="display:none; margin-top:10px;">
   <button id="rollDiceBtn" style="padding:6px 12px; font-size:1em;">🎲 Roll Dice</button>
   <div id="diceDisplay" style="margin-top:6px; font-size:1.2em; color:#0f0;"></div>
