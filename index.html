@@ -122,6 +122,64 @@ transform: translateY(4px);
 .bg-highlight {
   box-shadow: inset 0 0 0 3px lime;
 }
+
+.backgammon-board {
+  display: flex;
+  flex-direction: column;
+  width: 90vw;
+  max-width: 800px;
+  margin: auto;
+}
+
+.bg-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.bg-point {
+  position: relative;
+  width: 8.33%; /* 100/12 */
+  cursor: pointer;
+}
+
+.bg-point::before {
+  content: "";
+  display: block;
+  padding-top: 200%; /* Height of triangle */
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  background: #eee;
+  border: 1px solid #444;
+}
+
+.bg-row.top .bg-point::before {
+  transform: rotate(180deg);
+}
+
+.bg-point:nth-child(odd)::before {
+  background: #444;
+}
+.bg-point:nth-child(even)::before {
+  background: #eee;
+}
+
+/* Checker container to stack pieces inside triangles */
+.bg-checkers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px;
+  pointer-events: none;
+}
+
+.bg-checkers img {
+  width: 80%;
+  margin-bottom: 2px;
+}  
   
 </style>
 </head>
@@ -293,50 +351,85 @@ function drawBoard() {
   board.innerHTML = '';
 
   if (currentGame === 'backgammon') {
-    // Show Backgammon controls
-document.getElementById('backgammonControls').style.display = 'block';
+  document.getElementById('backgammonControls').style.display = 'block';
+  board.innerHTML = '';
+  board.className = 'backgammon-board';
 
-// Clear and set up container
-board.innerHTML = '';
-board.style.display = 'flex';
-board.style.flexDirection = 'column';
-board.style.flexWrap = 'nowrap';
-board.style.alignItems = 'center';
-board.style.maxWidth = '720px';
+  // Top row (points 12 to 1)
+  const topRow = document.createElement('div');
+  topRow.className = 'bg-row top';
 
-// Row 1 (points 12 to 1)
-const topRow = document.createElement('div');
-topRow.style.display = 'flex';
-topRow.style.width = '100%';
-topRow.style.justifyContent = 'space-between';
+  for (let i = 11; i >= 0; i--) {
+    const point = document.createElement('div');
+    point.className = 'bg-point';
+    point.dataset.index = i;
+    point.addEventListener('click', handleBackgammonClick);
 
-for (let i = 11; i >= 0; i--) {
-  const point = createBackgammonPoint(i);
-  topRow.appendChild(point);
-}
+    // Container for checkers
+    const checkerContainer = document.createElement('div');
+    checkerContainer.className = 'bg-checkers';
 
-// Row 2 (points 13 to 24)
-const bottomRow = document.createElement('div');
-bottomRow.style.display = 'flex';
-bottomRow.style.width = '100%';
-bottomRow.style.justifyContent = 'space-between';
+    const countWhite = gameState[i].white;
+    const countBlack = gameState[i].black;
 
-for (let i = 12; i < 24; i++) {
-  const point = createBackgammonPoint(i);
-  bottomRow.appendChild(point);
-}
+    for (let j = 0; j < countWhite; j++) {
+      const img = document.createElement('img');
+      img.src = `pieces/${currentTheme}/white-p.png`;
+      checkerContainer.appendChild(img);
+    }
 
-// Append rows to board
-board.appendChild(topRow);
-board.appendChild(bottomRow);
+    for (let j = 0; j < countBlack; j++) {
+      const img = document.createElement('img');
+      img.src = `pieces/${currentTheme}/black-p.png`;
+      checkerContainer.appendChild(img);
+    }
 
-// Update move log
-document.getElementById('moveLog').innerHTML = `<strong>Backgammon Mode:</strong><br>
-White on bar: ${bar.white} | Black on bar: ${bar.black}<br>
-White borne off: ${borneOff.white} | Black borne off: ${borneOff.black}`;
-
-return;
+    point.appendChild(checkerContainer);
+    topRow.appendChild(point);
   }
+
+  // Bottom row (points 13 to 24)
+  const bottomRow = document.createElement('div');
+  bottomRow.className = 'bg-row bottom';
+
+  for (let i = 12; i < 24; i++) {
+    const point = document.createElement('div');
+    point.className = 'bg-point';
+    point.dataset.index = i;
+    point.addEventListener('click', handleBackgammonClick);
+
+    const checkerContainer = document.createElement('div');
+    checkerContainer.className = 'bg-checkers';
+
+    const countWhite = gameState[i].white;
+    const countBlack = gameState[i].black;
+
+    for (let j = 0; j < countWhite; j++) {
+      const img = document.createElement('img');
+      img.src = `pieces/${currentTheme}/white-p.png`;
+      checkerContainer.appendChild(img);
+    }
+
+    for (let j = 0; j < countBlack; j++) {
+      const img = document.createElement('img');
+      img.src = `pieces/${currentTheme}/black-p.png`;
+      checkerContainer.appendChild(img);
+    }
+
+    point.appendChild(checkerContainer);
+    bottomRow.appendChild(point);
+  }
+
+  // Append both rows
+  board.appendChild(topRow);
+  board.appendChild(bottomRow);
+
+  // Update move log
+  document.getElementById('moveLog').innerHTML = `<strong>Backgammon Mode:</strong><br>
+  White on bar: ${bar.white} | Black on bar: ${bar.black}<br>
+  White borne off: ${borneOff.white} | Black borne off: ${borneOff.black}`;
+  return;
+}
 
 // ✅ For Chess and Checkers, hide Backgammon controls
   document.getElementById('backgammonControls').style.display = 'none';
