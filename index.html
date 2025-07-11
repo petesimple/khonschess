@@ -891,6 +891,9 @@ updateDiceDisplay();
     return;
   }
 
+  const confirmEnd = confirm("⚠️ Are you *absolutely* sure you want to end your turn?\n\nThis could be the moment your ancestors will judge you forever.");
+  if (!confirmEnd) return;
+
   // Clear dice and switch turn
   diceRoll = [];
   diceUsed = [];
