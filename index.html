@@ -296,6 +296,7 @@ board.innerHTML = '';
 if (currentGame === 'backgammon') {
 // Show Backgammon controls
 document.getElementById('backgammonControls').style.display = 'block';
+ document.getElementById('endTurnBtn').style.display = 'inline-block';
 
 // Clear and set up container
 board.innerHTML = '';
@@ -341,6 +342,7 @@ return;
 
 // ✅ For Chess and Checkers, hide Backgammon controls
 document.getElementById('backgammonControls').style.display = 'none';
+ document.getElementById('endTurnBtn').style.display = 'none';
 
 // For Chess and Checkers
 const files = ['a','b','c','d','e','f','g','h'];
@@ -879,6 +881,26 @@ diceRoll = [die1, die2];
 diceUsed = [];
 
 updateDiceDisplay();
+});
+
+ document.getElementById('endTurnBtn').addEventListener('click', () => {
+  if (currentGame !== 'backgammon') return;
+
+  if (diceRoll.length === 0) {
+    alert("You haven't rolled dice yet.");
+    return;
+  }
+
+  // Clear dice and switch turn
+  diceRoll = [];
+  diceUsed = [];
+  selectedPoint = null;
+
+  currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+  alert(`Turn over. ${currentPlayer}'s turn.`);
+
+  updateDiceDisplay();
+  drawBoard();
 });
 
 function updateDiceDisplay() {
