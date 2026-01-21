@@ -1,53 +1,86 @@
-# ♟️ Khon's Chess, Checkers & Backgammon!
+♟️ Khon’s Chess, Checkers & Backgammon
 
-> A pixel-powered bar game app for Chess, Checkers, and Backgammon — with theme switching, deep links, auto-saves, and crawfish spirit 🦐
+A pixel-powered bar game app for Chess, Checkers, and Backgammon — with theme switching, deep links, auto-saves, and crawfish spirit 🦐
 
----
+⸻
 
-## 🎮 Features
+🎮 Features
+	•	Play Chess, Checkers, or Backgammon in a single app
+	•	Full rule support:
+	•	Chess
+	•	Castling (king and queen side)
+	•	En passant
+	•	Pawn promotion
+	•	Check, checkmate, stalemate
+	•	50-move draw rule
+	•	Legal-move filtering (no moving into check)
+	•	Checkers
+	•	Captures and multi-jumps
+	•	Kinging
+	•	Turn continuation on forced jumps
+	•	Win detection when a player has no pieces or no legal moves
+	•	Backgammon
+	•	Dice rolling (including doubles)
+	•	Hitting and bar tracking
+	•	Bar re-entry enforcement
+	•	Bearing off
+	•	Visual move highlighting
+	•	Theme selector with multiple pixel-art sets:
+	•	Classic
+	•	Firefly
+	•	Star Wars
+	•	Star Trek
+	•	300
+	•	Dracula vs Vampire Hunter
+	•	Samurai vs Vikings
+	•	Dinos vs Dino-Ghosts
+	•	SFIFF
+	•	Deep linking via URL
+	•	Launch directly into a specific game and theme
+	•	Example:
 
-- Play Chess, Checkers, or Backgammon in one app
-- Full rule support:
-  - Chess: castling, en passant, promotion, checkmate and stalemate detection
-  - Checkers: multi-jumps, kinging, forced-move logic
-  - Backgammon: dice rolls, hitting (capturing), bar re-entry, bearing off
-- Theme selector with:
-  - Classic, Firefly, Star Wars, Star Trek, SFIFF, and more
-- Deep-linking via URL
-  - Launch directly into a specific theme and game mode
-  - Example:
-    http://petesimple.github.io/khonschess/?theme=SFIFF&game=chess
-- Autosaves per game mode
-  - Chess, Checkers, and Backgammon each maintain independent saves
-- PGN download support for Chess
-- QR code toggle for instant sharing
-- Offline-capable PWA with service worker support
-- Custom sprites, including themed Backgammon checkers
+https://petesimple.github.io/khonschess/?theme=SFIFF&game=chess
 
----
 
-## 🧠 Built With
+	•	Autosave per game mode
+	•	Chess, Checkers, and Backgammon each maintain independent saves
+	•	Refresh-safe and offline-friendly
+	•	Chess PGN export
+	•	Download a standard PGN file for completed or in-progress games
+	•	QR code toggle
+	•	Tap the logo to reveal a shareable QR code
+	•	Offline-capable PWA
+	•	Service worker support for offline play
+	•	Installable on desktop and mobile
 
-- HTML5
-- Vanilla JavaScript
-- CSS3
-- Pure creativity, no frameworks
+⸻
 
----
+🧠 Built With
+	•	HTML5
+	•	Vanilla JavaScript
+	•	CSS3
+	•	No frameworks
+	•	Mild chaos, strong coffee ☕
 
-## 🚀 Getting Started
+⸻
 
-1. Clone or download this repo:
-   git clone https://github.com/petesimple/khons-chess.git
-2. Open index.html in your browser
-3. Start playing — no setup needed
+🚀 Getting Started
+	1.	Clone or download the repository:
 
----
+git clone https://github.com/petesimple/khons-chess.git
 
-## 📁 Project Structure
+
+	2.	Open index.html in your browser
+	3.	Pick a game, pick a theme, start playing
+
+No build step. No accounts. No nonsense.
+
+⸻
+
+📁 Project Structure
 
 khons-chess/
-├── index.html              # Main game logic and layout
+├── index.html              # Main app logic and UI
 ├── manifest.json           # PWA metadata
 ├── service-worker.js       # Offline support
 ├── pieces/                 # Theme-specific sprites
@@ -55,61 +88,90 @@ khons-chess/
 │   ├── firefly/
 │   ├── starwars/
 │   ├── startrek/
+│   ├── 300/
+│   ├── dracula/
+│   ├── SamvsVik/
+│   ├── Dinos/
 │   └── SFIFF/
 ├── kclogo.png              # Default logo
 ├── khonschess-qr.png       # QR overlay image
 └── README.md
 
----
 
-## 🧪 Customization
+⸻
 
-- Add new themes by dropping sprites into:
-  /pieces/{theme-name}/
-- Chess sprite format:
-  white-p.png, black-k.png, etc.
-- Backgammon sprite format:
-  white-p.png, black-p.png
-- Checkers uses pawn sprites and -k variants for kings
-- Board styles, rules, and UI logic can all be modified directly in index.html
+🧪 Customization
+	•	Add a new theme by creating:
 
----
+/pieces/{theme-name}/
 
-## 🔗 Deep Linking (v2.6.2+)
 
-You can launch the app fully configured using URL parameters:
+	•	Sprite naming:
+	•	Chess:
 
-- Set theme:
-  ?theme=SFIFF
-- Set game:
-  ?game=chess
-  ?game=checkers
-  ?game=backgammon
-- Combine both:
-  http://petesimple.github.io/khonschess/?theme=SFIFF&game=chess
+white-p.png, black-k.png, white-q.png, etc.
 
-Shorthand theme links (?SFIFF&game=chess) are also supported and auto-normalized.
 
----
+	•	Checkers:
 
-## 📜 Version
+white-p.png, black-p.png
+white-k.png, black-k.png
 
-v2.6.2 – LinkParams Theme + Game
 
-Adds URL-based theme and game launching, per-game save isolation, and improved initialization for event and festival use.
+	•	Backgammon:
 
----
+white-p.png, black-p.png
 
-## 🙌 Credits
 
-- Developed by Pete Lippincott
-- Inspired by the vibes of Khon’s Bar, Houston, TX
-- Pixel art style nod to NES and arcade classics
-- Chess and Backgammon logic powered by coffee and intuition ☕♛
+	•	All rules, UI behavior, and visuals live directly in index.html for easy tinkering.
 
----
+⸻
 
-## 📬 Feedback
+🔗 Deep Linking
 
-Have a bug or feature request?
-Open an issue — or send a telepathic crawfish 🧠🦐
+You can fully configure the app via URL parameters:
+	•	Set theme:
+
+?theme=SFIFF
+
+
+	•	Set game:
+
+?game=chess
+?game=checkers
+?game=backgammon
+
+
+	•	Combine both:
+
+https://petesimple.github.io/khonschess/?theme=SFIFF&game=chess
+
+
+
+Shorthand theme links like ?SFIFF&game=chess are also supported and automatically normalized.
+
+⸻
+
+📜 Version
+
+v2.7.1 – Bug Fixes: Checkers, Chess, Theme Restore, Labels
+	•	Fixed checkers capture and win detection bugs
+	•	Corrected chess attack detection (pawn attacks, castling safety, check logic)
+	•	Restored saved theme on refresh
+	•	Cleaned up rank and file label positioning
+	•	General rules accuracy and stability improvements
+
+⸻
+
+🙌 Credits
+	•	Developed by Pete Lippincott
+	•	Inspired by the vibes of Khon’s Bar, Houston, TX
+	•	Pixel-art nods to NES and arcade classics
+	•	Rules logic powered by stubbornness and curiosity ♛
+
+⸻
+
+📬 Feedback
+
+Found a bug or want a feature?
+Open an issue — or challenge the code to a game and see who wins 🦐
