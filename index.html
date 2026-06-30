@@ -214,6 +214,51 @@ body {
   </div>
 </div>
 
+<div id="computerControls" style="
+  margin-top: 12px;
+  padding: 10px;
+  background: #222;
+  border: 1px solid #0f0;
+  border-radius: 8px;
+  width: 90vw;
+  max-width: 460px;
+">
+  <label>
+    <input type="checkbox" id="computerEnabled">
+    Play against computer (chess only)
+  </label>
+
+  <label for="computerColor" style="margin-left: 10px;">
+    Computer:
+  </label>
+
+  <select id="computerColor">
+    <option value="black">Black</option>
+    <option value="white">White</option>
+  </select>
+
+  <label for="computerLevel" style="margin-left: 10px;">
+    Level:
+  </label>
+
+  <select id="computerLevel">
+    <option value="0">Sleepy Pigeon</option>
+    <option value="3">Beginner</option>
+    <option value="6" selected>Casual</option>
+    <option value="10">Club Player</option>
+    <option value="15">Serious Business</option>
+    <option value="20">Khon Has Made A Mistake</option>
+  </select>
+
+  <div id="engineStatus" style="
+    margin-top: 8px;
+    color: #aaa;
+    font-size: 0.85em;
+  ">
+    Computer player off
+  </div>
+</div>
+  
 <script>
 const board = document.getElementById('chessboard');
 
@@ -241,6 +286,395 @@ let borneOff = { white: 0, black: 0 };
 let gameResult = "*";
 let halfMoveClock = 0;
 let fullMoveNumber = 1;
+
+let chessEngine = null;
+let engineReady = false;
+let engineThinking = false;
+
+let computerEnabled = false;
+let computerColor = 'black';
+let computerLevel = 6;
+
+
+function initializeChessEngine() {
+  if (chessEngine) return;
+
+  const status = document.getElementById('engineStatus');
+
+  try {
+    chessEngine = new Worker(
+      './stockfish/stockfish-18-lite-single.js'
+    );
+
+    status.textContent = 'Loading computer player...';
+
+    chessEngine.onmessage = event => {
+      const line = String(event.data || '');
+
+      console.log('[Stockfish]', line);
+
+      if (line === 'uciok') {
+        chessEngine.postMessage(
+          `setoption name Skill Level value ${computerLevel}`
+        );
+
+        chessEngine.postMessage(
+          'setoption name Hash value 16'
+        );
+
+        chessEngine.postMessage('isready');
+        return;
+      }
+
+      if (line === 'readyok') {
+        engineReady = true;
+        status.textContent = 'Computer player ready';
+
+        maybeStartComputerTurn();
+        return;
+      }
+
+      if (line.startsWith('bestmove')) {
+  const parts = line.split(/\s+/);
+  const move = parts[1];
+
+  const shouldApplyMove =
+    engineThinking &&
+    computerEnabled &&
+    currentGame === 'chess' &&
+    gameResult === '*' &&
+    currentPlayer === computerColor;
+
+  engineThinking = false;
+
+  if (!shouldApplyMove) {
+    console.log(
+      'Ignored outdated Stockfish response:',
+      move
+    );
+    return;
+  }
+
+  if (!move || move === '(none)' || move === '0000') {
+    status.textContent = 'Computer has no legal move';
+    return;
+  }
+
+  status.textContent = `Computer chose ${move}`;
+  applyComputerUCIMove(move);
+}
+    };
+
+    chessEngine.onerror = error => {
+      console.error('Stockfish worker error:', error);
+
+      engineReady = false;
+      engineThinking = false;
+      status.textContent = 'Computer player failed to load';
+    };
+
+    chessEngine.postMessage('uci');
+  } catch (error) {
+    console.error('Unable to start Stockfish:', error);
+    status.textContent = 'Computer player unavailable';
+  }
+}
+
+function gameStateToFEN() {
+  const rows = [];
+
+  for (let row = 0; row < 8; row++) {
+    let fenRow = '';
+    let emptyCount = 0;
+
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState[row][col];
+
+      if (!piece) {
+        emptyCount++;
+        continue;
+      }
+
+      if (emptyCount > 0) {
+        fenRow += emptyCount;
+        emptyCount = 0;
+      }
+
+      let letter = piece.type.toLowerCase();
+
+      if (piece.color === 'white') {
+        letter = letter.toUpperCase();
+      }
+
+      fenRow += letter;
+    }
+
+    if (emptyCount > 0) {
+      fenRow += emptyCount;
+    }
+
+    rows.push(fenRow);
+  }
+
+  const activeColor = currentPlayer === 'white' ? 'w' : 'b';
+
+  let castling = '';
+
+  if (castlingRights.white.K) castling += 'K';
+  if (castlingRights.white.Q) castling += 'Q';
+  if (castlingRights.black.K) castling += 'k';
+  if (castlingRights.black.Q) castling += 'q';
+
+  if (!castling) castling = '-';
+
+  let enPassant = '-';
+
+  if (enPassantTarget) {
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    enPassant =
+      files[enPassantTarget.col] +
+      String(8 - enPassantTarget.row);
+  }
+
+  return [
+    rows.join('/'),
+    activeColor,
+    castling,
+    enPassant,
+    halfMoveClock,
+    fullMoveNumber
+  ].join(' ');
+}
+
+function parseUCIMove(uciMove) {
+  if (!uciMove || uciMove.length < 4) return null;
+
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+  const fromFile = files.indexOf(uciMove[0]);
+  const fromRank = Number(uciMove[1]);
+
+  const toFile = files.indexOf(uciMove[2]);
+  const toRank = Number(uciMove[3]);
+
+  if (
+    fromFile < 0 ||
+    toFile < 0 ||
+    fromRank < 1 ||
+    fromRank > 8 ||
+    toRank < 1 ||
+    toRank > 8
+  ) {
+    return null;
+  }
+
+  return {
+    fromRow: 8 - fromRank,
+    fromCol: fromFile,
+    toRow: 8 - toRank,
+    toCol: toFile,
+    promotion: uciMove[4]
+      ? uciMove[4].toUpperCase()
+      : null
+  };
+}
+
+function executeChessMove(
+  fromRow,
+  fromCol,
+  toRow,
+  toCol,
+  promotionType = 'Q'
+) {
+  if (currentGame !== 'chess') return false;
+  if (gameResult !== '*') return false;
+
+  const piece = gameState[fromRow]?.[fromCol];
+
+  if (!piece) return false;
+  if (piece.color !== currentPlayer) return false;
+
+  const validMoves = getLegalMoves(fromRow, fromCol, piece);
+
+  const legalMove = validMoves.find(move => {
+    return move.row === toRow && move.col === toCol;
+  });
+
+  if (!legalMove) {
+    console.warn(
+      'Rejected illegal move:',
+      fromRow,
+      fromCol,
+      toRow,
+      toCol
+    );
+
+    return false;
+  }
+
+  const capturedAtDestination = gameState[toRow][toCol];
+
+  const wasCapture = Boolean(capturedAtDestination);
+  const wasPawnMove = piece.type === 'P';
+
+  const move = {
+    fromRow,
+    fromCol,
+    toRow,
+    toCol,
+    piece: { ...piece },
+    capture: capturedAtDestination
+      ? { ...capturedAtDestination }
+      : null
+  };
+
+  if (
+    piece.type === 'K' &&
+    Math.abs(toCol - fromCol) === 2
+  ) {
+    const rookCol = toCol === 6 ? 7 : 0;
+    const newRookCol = toCol === 6 ? 5 : 3;
+    const rook = gameState[toRow][rookCol];
+
+    if (!rook || rook.type !== 'R') {
+      return false;
+    }
+
+    gameState[toRow][newRookCol] = {
+      ...rook,
+      hasMoved: true
+    };
+
+    gameState[toRow][rookCol] = null;
+    move.castle = toCol === 6 ? 'K' : 'Q';
+  }
+
+  if (
+    piece.type === 'P' &&
+    toCol !== fromCol &&
+    !move.capture
+  ) {
+    const enPassantPiece = gameState[fromRow][toCol];
+
+    if (enPassantPiece) {
+      move.capture = { ...enPassantPiece };
+      move.enPassant = true;
+      gameState[fromRow][toCol] = null;
+    }
+  }
+
+  gameState[toRow][toCol] = {
+    ...piece,
+    hasMoved: true
+  };
+
+  gameState[fromRow][fromCol] = null;
+
+  if (
+    piece.type === 'P' &&
+    (toRow === 0 || toRow === 7)
+  ) {
+    const allowedPromotions = ['Q', 'R', 'B', 'N'];
+
+    gameState[toRow][toCol].type =
+      allowedPromotions.includes(promotionType)
+        ? promotionType
+        : 'Q';
+
+    move.promotion = gameState[toRow][toCol].type;
+  }
+
+  if (piece.type === 'K') {
+    castlingRights[piece.color].K = false;
+    castlingRights[piece.color].Q = false;
+  }
+
+  if (piece.type === 'R') {
+  const rookHomeRow =
+    piece.color === 'white' ? 7 : 0;
+
+  if (
+    fromRow === rookHomeRow &&
+    fromCol === 0
+  ) {
+    castlingRights[piece.color].Q = false;
+  }
+
+  if (
+    fromRow === rookHomeRow &&
+    fromCol === 7
+  ) {
+    castlingRights[piece.color].K = false;
+  }
+}
+
+  if (move.capture && move.capture.type === 'R') {
+  const capturedColor = move.capture.color;
+  const capturedRookHomeRow =
+    capturedColor === 'white' ? 7 : 0;
+
+  if (
+    toRow === capturedRookHomeRow &&
+    toCol === 0
+  ) {
+    castlingRights[capturedColor].Q = false;
+  }
+
+  if (
+    toRow === capturedRookHomeRow &&
+    toCol === 7
+  ) {
+    castlingRights[capturedColor].K = false;
+  }
+}
+
+  logMove(
+    { row: fromRow, col: fromCol },
+    { row: toRow, col: toCol },
+    piece,
+    move
+  );
+
+  enPassantTarget = null;
+
+  if (
+    piece.type === 'P' &&
+    Math.abs(toRow - fromRow) === 2
+  ) {
+    enPassantTarget = {
+      row: (toRow + fromRow) / 2,
+      col: toCol
+    };
+  }
+
+  if (wasPawnMove || wasCapture || move.enPassant) {
+    halfMoveClock = 0;
+  } else {
+    halfMoveClock++;
+  }
+
+  if (currentPlayer === 'black') {
+    fullMoveNumber++;
+  }
+
+  moveHistory.push(move);
+
+  currentPlayer =
+    currentPlayer === 'white'
+      ? 'black'
+      : 'white';
+
+  selectedSquare = null;
+  legalMoves = [];
+
+  checkForWin();
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+
+  return true;
+}
 
 function getSaveKey() {
   return `khonsChessSave_${currentGame}`;
@@ -370,6 +804,7 @@ function hardResetForCurrentGame() {
   gameResult = "*";
   halfMoveClock = 0;
   fullMoveNumber = 1;
+  engineThinking = false;
 
   castlingRights = {
     white: { K: true, Q: true },
@@ -380,9 +815,26 @@ function hardResetForCurrentGame() {
   if (currentGame === 'checkers') setupCheckersBoard();
   if (currentGame === 'backgammon') setupBackgammonBoard();
 
+  if (
+    currentGame === 'chess' &&
+    chessEngine
+  ) {
+    engineReady = false;
+    chessEngine.postMessage('stop');
+    chessEngine.postMessage('ucinewgame');
+    chessEngine.postMessage(
+      `setoption name Skill Level value ${computerLevel}`
+    );
+    chessEngine.postMessage('isready');
+  }
+
   drawBoard();
   updateStatusBar();
   saveGame();
+
+  if (!chessEngine) {
+    setTimeout(maybeStartComputerTurn, 100);
+  }
 }
 
 function saveGame() {
@@ -407,6 +859,7 @@ function saveGame() {
   };
   localStorage.setItem(getSaveKey(), JSON.stringify(saveData));
 }
+
 
 function loadGame() {
   const saved = localStorage.getItem(getSaveKey());
@@ -662,104 +1115,248 @@ function handleSquareClick(e) {
     }
   }
 
-  if (selectedSquare) {
-    if (legalMoves.some(m => m.row === row && m.col === col)) {
-      const from = selectedSquare;
-      const piece = gameState[from.row][from.col];
-      
-      const wasCapture = gameState[row][col] !== null;
-      const wasPawnMove = piece.type === 'P';
-      
-      const move = {
-        fromRow: from.row,
-        fromCol: from.col,
-        toRow: row,
-        toCol: col,
-        piece,
-        capture: gameState[row][col]
-      };
+if (currentGame === 'chess') {
+  if (engineThinking) return;
 
-      // Handle castling
-      if (piece.type === 'K' && Math.abs(col - from.col) === 2) {
-        const rookCol = col === 6 ? 7 : 0;
-        const newRookCol = col === 6 ? 5 : 3;
-        const rook = gameState[row][rookCol];
-        gameState[row][newRookCol] = { ...rook, hasMoved: true };
-        gameState[row][rookCol] = null;
-        move.castle = col === 6 ? 'K' : 'Q';
-      }
-
-      // Handle en passant capture
-      if (piece.type === 'P' && col !== from.col && !move.capture) {
-        move.capture = gameState[from.row][col];
-        move.enPassant = true;
-        gameState[from.row][col] = null;
-      }
-
-      // Move the piece
-      gameState[row][col] = { ...piece, hasMoved: true };
-      gameState[from.row][from.col] = null;
-
-      // Handle pawn promotion
-      if (piece.type === 'P' && (row === 0 || row === 7)) {
-        gameState[row][col].type = 'Q';
-        move.promotion = 'Q';
-      }
-
-      // Update castling rights
-      if (piece.type === 'K') {
-        castlingRights[piece.color].K = false;
-        castlingRights[piece.color].Q = false;
-      }
-      if (piece.type === 'R') {
-        if (from.col === 0) castlingRights[piece.color].Q = false;
-        if (from.col === 7) castlingRights[piece.color].K = false;
-      }
-      // If a rook is captured
-      if (move.capture && move.capture.type === 'R') {
-        const captureColor = move.capture.color;
-        if (col === 0) castlingRights[captureColor].Q = false;
-        if (col === 7) castlingRights[captureColor].K = false;
-      }
-
-      logMove(from, { row, col }, piece, move);
-
-      // Set en passant target
-      enPassantTarget = null;
-      if (piece.type === 'P' && Math.abs(row - from.row) === 2) {
-        enPassantTarget = { row: (row + from.row) / 2, col };
-      }
-
-      // Update halfmove clock (for 50-move rule)
-      if (wasPawnMove || wasCapture) {
-        halfMoveClock = 0;
-      } else {
-        halfMoveClock++;
-      }
-
-      // Update full move number
-      if (currentPlayer === 'black') {
-        fullMoveNumber++;
-      }
-
-      moveHistory.push(move);
-      currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-
-      saveGame();
-      checkForWin();
-    }
-
-    selectedSquare = null;
-    legalMoves = [];
-  } else {
-    if (clickedPiece && clickedPiece.color === currentPlayer) {
-      selectedSquare = { row, col };
-      legalMoves = getLegalMoves(row, col, clickedPiece);
-    }
+  if (
+    computerEnabled &&
+    currentPlayer === computerColor
+  ) {
+    return;
   }
+
+  if (selectedSquare) {
+    const moveIsLegal = legalMoves.some(move => {
+      return move.row === row && move.col === col;
+    });
+
+    if (moveIsLegal) {
+      executeChessMove(
+        selectedSquare.row,
+        selectedSquare.col,
+        row,
+        col
+      );
+
+      maybeStartComputerTurn();
+      return;
+    }
+
+    if (
+      clickedPiece &&
+      clickedPiece.color === currentPlayer
+    ) {
+      selectedSquare = { row, col };
+      legalMoves = getLegalMoves(
+        row,
+        col,
+        clickedPiece
+      );
+    } else {
+      selectedSquare = null;
+      legalMoves = [];
+    }
+
+    drawBoard();
+    return;
+  }
+
+  if (
+    clickedPiece &&
+    clickedPiece.color === currentPlayer
+  ) {
+    selectedSquare = { row, col };
+
+    legalMoves = getLegalMoves(
+      row,
+      col,
+      clickedPiece
+    );
+
+    drawBoard();
+  }
+
+  return;
+}
+}
+
+function maybeStartComputerTurn() {
+  if (!computerEnabled) return;
+  if (currentGame !== 'chess') return;
+  if (gameResult !== '*') return;
+  if (currentPlayer !== computerColor) return;
+  if (!engineReady || !chessEngine) return;
+  if (engineThinking) return;
+
+  engineThinking = true;
+  selectedSquare = null;
+  legalMoves = [];
 
   drawBoard();
   updateStatusBar();
+
+  const status = document.getElementById('engineStatus');
+  status.textContent = 'Computer is thinking...';
+
+  const fen = gameStateToFEN();
+
+  chessEngine.postMessage(`position fen ${fen}`);
+
+  const thinkingTime = getComputerThinkingTime();
+  chessEngine.postMessage(`go movetime ${thinkingTime}`);
+}
+
+function getComputerThinkingTime() {
+  if (computerLevel <= 3) return 150;
+  if (computerLevel <= 6) return 250;
+  if (computerLevel <= 10) return 400;
+  if (computerLevel <= 15) return 700;
+
+  return 1200;
+}
+
+function applyComputerUCIMove(uciMove) {
+  const parsed = parseUCIMove(uciMove);
+  const status = document.getElementById('engineStatus');
+
+  if (!parsed) {
+    status.textContent = `Invalid computer move: ${uciMove}`;
+    return;
+  }
+
+  const moved = executeChessMove(
+    parsed.fromRow,
+    parsed.fromCol,
+    parsed.toRow,
+    parsed.toCol,
+    parsed.promotion || 'Q'
+  );
+
+  if (!moved) {
+    status.textContent =
+      `Computer move rejected: ${uciMove}`;
+
+    console.error(
+      'Stockfish supplied a move the local rules rejected:',
+      uciMove,
+      gameStateToFEN()
+    );
+
+    return;
+  }
+
+  status.textContent =
+    `Computer played ${uciMove}`;
+}
+
+const computerEnabledInput =
+  document.getElementById('computerEnabled');
+
+const computerColorSelect =
+  document.getElementById('computerColor');
+
+const computerLevelSelect =
+  document.getElementById('computerLevel');
+
+computerEnabledInput.addEventListener('change', event => {
+  computerEnabled = event.target.checked;
+
+  if (computerEnabled) {
+    initializeChessEngine();
+    maybeStartComputerTurn();
+  } else {
+    engineThinking = false;
+    selectedSquare = null;
+    legalMoves = [];
+
+    if (chessEngine) {
+      chessEngine.postMessage('stop');
+    }
+
+    document.getElementById('engineStatus')
+      .textContent = 'Computer player off';
+
+    drawBoard();
+    updateStatusBar();
+  }
+
+  saveComputerSettings();
+});
+
+computerColorSelect.addEventListener('change', event => {
+  computerColor = event.target.value;
+
+  selectedSquare = null;
+  legalMoves = [];
+
+  saveComputerSettings();
+  drawBoard();
+  updateStatusBar();
+
+  if (chessEngine) {
+    engineThinking = false;
+    engineReady = false;
+
+    chessEngine.postMessage('stop');
+    chessEngine.postMessage('isready');
+  } else if (computerEnabled) {
+    initializeChessEngine();
+  }
+});
+
+computerLevelSelect.addEventListener('change', event => {
+  computerLevel = Number(event.target.value);
+
+  if (chessEngine && engineReady) {
+    chessEngine.postMessage(
+      `setoption name Skill Level value ${computerLevel}`
+    );
+  }
+
+  saveComputerSettings();
+});
+
+function saveComputerSettings() {
+  localStorage.setItem(
+    'khonsChessComputerSettings',
+    JSON.stringify({
+      enabled: computerEnabled,
+      color: computerColor,
+      level: computerLevel
+    })
+  );
+}
+
+function loadComputerSettings() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(
+        'khonsChessComputerSettings'
+      ) || '{}'
+    );
+
+    computerEnabled = Boolean(saved.enabled);
+    computerColor = saved.color || 'black';
+    computerLevel = Number(saved.level ?? 6);
+
+    document.getElementById('computerEnabled')
+      .checked = computerEnabled;
+
+    document.getElementById('computerColor')
+      .value = computerColor;
+
+    document.getElementById('computerLevel')
+      .value = String(computerLevel);
+
+    if (computerEnabled) {
+      initializeChessEngine();
+    }
+  } catch (error) {
+    console.warn(
+      'Could not restore computer settings:',
+      error
+    );
+  }
 }
 
 function makeCheckersMove(fromRow, fromCol, toRow, toCol, piece) {
@@ -1160,7 +1757,7 @@ function checkForWin() {
         // Add checkmate symbol to last move
         if (pgnMoves.length > 0) {
           const lastMove = pgnMoves[pgnMoves.length - 1];
-          const moveIndex = currentPlayer === 'white' ? 0 : 1;
+          const moveIndex = currentPlayer === 'white' ? 1 : 0;
           if (lastMove[moveIndex]) {
             lastMove[moveIndex] += '#';
           }
@@ -1190,7 +1787,7 @@ function checkForWin() {
       // Add check symbol to last move
       if (pgnMoves.length > 0) {
         const lastMove = pgnMoves[pgnMoves.length - 1];
-        const moveIndex = currentPlayer === 'white' ? 0 : 1;
+        const moveIndex = currentPlayer === 'white' ? 1 : 0;
         if (lastMove[moveIndex] && !lastMove[moveIndex].endsWith('+')) {
           lastMove[moveIndex] += '+';
         }
@@ -1513,10 +2110,11 @@ setURLParam('game', currentGame);
 setURLParam('theme', currentTheme);
 
 loadGame();
+loadComputerSettings();
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 2.7.1 (Bug Fixes: Checkers, Chess, Theme Restore, Labels)
+  Version 2.8.0 (Offline Computer Player)
 </div>
 
 </body>
