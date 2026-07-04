@@ -28,7 +28,9 @@ const FILES_TO_CACHE = [
   "./white-q.png",
   "./black-q.png",
   "./white-k.png",
-  "./black-k.png"
+  "./black-k.png",
+
+  "./vendor/chess.js"
 ];
 
 self.addEventListener("install", event => {
