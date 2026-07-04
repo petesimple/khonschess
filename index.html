@@ -202,6 +202,30 @@ body {
     </button>
   </div>
 
+<div style="margin-top: 10px;">
+  <button
+    onclick="document.getElementById('pgnFileInput').click()"
+    style="
+      padding: 6px 12px;
+      font-size: 1em;
+      font-family: monospace;
+      border-radius: 6px;
+      background: #333;
+      color: #0ff;
+      border: 1px solid #0ff;
+    "
+  >
+    ⬆️ Upload PGN
+  </button>
+
+  <input
+    id="pgnFileInput"
+    type="file"
+    accept=".pgn,text/plain,application/x-chess-pgn"
+    hidden
+  >
+</div>
+
   <div style="margin-top: 10px;">
     <button onclick="resetGame()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #900; color: #fff; border: 1px solid #f00;">
       🔁 Reset Game
@@ -297,6 +321,8 @@ let computerEnabled = false;
 let computerColor = 'black';
 let computerLevel = 6;
 
+let importingPGN = false;
+let importedPGNHeaders = {};
 
 function initializeChessEngine() {
   if (chessEngine) return;
@@ -801,6 +827,7 @@ function hardResetForCurrentGame() {
   legalMoves = [];
   moveHistory = [];
   pgnMoves = [];
+  importedPGNHeaders = {};
   currentPlayer = 'white';
   enPassantTarget = null;
   gameResult = "*";
@@ -852,6 +879,7 @@ function saveGame() {
     gameResult,
     halfMoveClock,
     fullMoveNumber,
+    importedPGNHeaders,
     // backgammon extras
     bar,
     borneOff,
@@ -871,12 +899,14 @@ function loadGame() {
     gameState = data.gameState || gameState;
     moveHistory = data.moveHistory || [];
     pgnMoves = data.pgnMoves || [];
+    importedPGNHeaders = data.importedPGNHeaders || {};
     currentPlayer = data.currentPlayer || 'white';
     castlingRights = data.castlingRights || castlingRights;
     enPassantTarget = data.enPassantTarget || null;
     gameResult = data.gameResult || "*";
     halfMoveClock = data.halfMoveClock || 0;
     fullMoveNumber = data.fullMoveNumber || 1;
+    
 
     // Restore theme
     if (data.currentTheme) {
@@ -1686,13 +1716,331 @@ function hasAnyLegalMoves(color) {
   return false;
 }
 
+async function handlePGNFileUpload(event) {
+  const input = event.target;
+  const file = input.files?.[0];
+
+  if (!file) return;
+
+  try {
+    const pgnText = await file.text();
+
+    if (!pgnText.trim()) {
+      throw new Error('The selected PGN file is empty.');
+    }
+
+    await importPGN(pgnText);
+  } catch (error) {
+    console.error('PGN import failed:', error);
+
+    alert(
+      `Could not import that PGN.\n\n${error.message}`
+    );
+  } finally {
+    // Allows the same file to be selected again.
+    input.value = '';
+  }
+}
+
+async function importPGN(pgnText) {
+  if (currentGame !== 'chess') {
+    const switchToChess = confirm(
+      'PGN files are for chess games. Switch to Chess mode?'
+    );
+
+    if (!switchToChess) return;
+
+    currentGame = 'chess';
+
+    const gameSelect =
+      document.getElementById('gameSelect');
+
+    if (gameSelect) {
+      gameSelect.value = 'chess';
+    }
+
+    setURLParam('game', 'chess');
+  }
+
+  let Chess;
+
+try {
+  const chessModule =
+    await import('./vendor/chess.js');
+
+  Chess = chessModule.Chess;
+} catch (error) {
+  console.error(
+    'Could not load chess.js:',
+    error
+  );
+
+  throw new Error(
+    'The PGN parser could not be loaded. Check that vendor/chess.js exists.'
+  );
+}
+
+if (typeof Chess !== 'function') {
+  throw new Error(
+    'vendor/chess.js loaded, but it does not export Chess.'
+  );
+}
+
+const parser = new Chess();
+
+  try {
+    parser.loadPgn(pgnText, {
+      strict: false
+    });
+  } catch (error) {
+    throw new Error(
+      `The PGN parser rejected this file: ${error.message}`
+    );
+  }
+
+  const headers = parser.getHeaders();
+  
+  const moves = parser.history({
+    verbose: true
+  });
+
+  if (moves.length === 0) {
+    throw new Error(
+      'No playable chess moves were found in the PGN.'
+    );
+  }
+
+  /*
+    First version supports normal games beginning from the
+    standard chess position.
+
+    PGNs with SetUp "1" and a FEN header require a separate
+    FEN loader.
+  */
+  if (
+    headers.SetUp === '1' ||
+    headers.FEN
+  ) {
+    throw new Error(
+      'This PGN begins from a custom position. Custom FEN imports are not supported yet.'
+    );
+  }
+
+  const approved = confirm(
+    `Import this game?\n\n` +
+    `${headers.White || 'White'} vs ` +
+    `${headers.Black || 'Black'}\n` +
+    `${moves.length} half-moves\n\n` +
+    `This will replace the current chess game.`
+  );
+
+  if (!approved) return;
+
+  stopComputerForPGNImport();
+
+const previousSave =
+  localStorage.getItem('khonsChessSave_chess');
+
+importingPGN = true;
+importedPGNHeaders = { ...headers };
+
+try {
+  resetChessStateForImport();
+
+  for (const move of moves) {
+    const parsed =
+      verboseMoveToCoordinates(move);
+
+    const moved = executeChessMove(
+      parsed.fromRow,
+      parsed.fromCol,
+      parsed.toRow,
+      parsed.toCol,
+      parsed.promotion
+    );
+
+    if (!moved) {
+      throw new Error(
+        `Khon's Chess rejected move ${
+          move.san ||
+          move.lan ||
+          move.from + move.to
+        }.`
+      );
+    }
+  }
+
+  if (
+    headers.Result &&
+    ['1-0', '0-1', '1/2-1/2']
+      .includes(headers.Result)
+  ) {
+    gameResult = headers.Result;
+  }
+
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+
+  const whiteName =
+    headers.White || 'White';
+
+  const blackName =
+    headers.Black || 'Black';
+
+  alert(
+    `PGN imported successfully!\n\n` +
+    `${whiteName} vs ${blackName}\n` +
+    `${moves.length} half-moves loaded.`
+  );
+} catch (error) {
+  console.error(
+    'Could not replay imported PGN:',
+    error
+  );
+
+  importingPGN = false;
+
+  if (previousSave) {
+    localStorage.setItem(
+      'khonsChessSave_chess',
+      previousSave
+    );
+
+    loadGame();
+  } else {
+    importedPGNHeaders = {};
+    resetChessStateForImport();
+    saveGame();
+    drawBoard();
+    updateStatusBar();
+  }
+
+  throw error;
+} finally {
+  importingPGN = false;
+}
+}
+
+function verboseMoveToCoordinates(move) {
+  const files =
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+  const fromFile =
+    files.indexOf(move.from[0]);
+
+  const toFile =
+    files.indexOf(move.to[0]);
+
+  const fromRank =
+    Number(move.from[1]);
+
+  const toRank =
+    Number(move.to[1]);
+
+  if (
+    fromFile < 0 ||
+    toFile < 0 ||
+    !Number.isInteger(fromRank) ||
+    !Number.isInteger(toRank)
+  ) {
+    throw new Error(
+      `Invalid move coordinates: ${move.from}-${move.to}`
+    );
+  }
+
+  return {
+    fromRow: 8 - fromRank,
+    fromCol: fromFile,
+    toRow: 8 - toRank,
+    toCol: toFile,
+    promotion: move.promotion
+      ? move.promotion.toUpperCase()
+      : 'Q'
+  };
+}
+
+function resetChessStateForImport() {
+  selectedSquare = null;
+  legalMoves = [];
+  moveHistory = [];
+  pgnMoves = [];
+
+  currentPlayer = 'white';
+  enPassantTarget = null;
+
+  gameResult = '*';
+  halfMoveClock = 0;
+  fullMoveNumber = 1;
+
+  castlingRights = {
+    white: {
+      K: true,
+      Q: true
+    },
+    black: {
+      K: true,
+      Q: true
+    }
+  };
+
+  setupBoard();
+}
+
+function stopComputerForPGNImport() {
+  engineThinking = false;
+
+  if (chessEngine) {
+    chessEngine.postMessage('stop');
+  }
+
+  computerEnabled = false;
+
+  const checkbox =
+    document.getElementById('computerEnabled');
+
+  if (checkbox) {
+    checkbox.checked = false;
+  }
+
+  const status =
+    document.getElementById('engineStatus');
+
+  if (status) {
+    status.textContent =
+      'Computer player off';
+  }
+
+  saveComputerSettings();
+}
+
 function downloadPGN() {
-  const pgnHeader = `[Event "Khon's Chess Match"]
-[Site "Khon's Bar"]
-[Date "${new Date().toISOString().split('T')[0]}"]
-[Round "-"]
-[White "Player 1"]
-[Black "Player 2"]
+  const whiteName =
+  importedPGNHeaders.White ||
+  'Player 1';
+
+const blackName =
+  importedPGNHeaders.Black ||
+  'Player 2';
+
+const eventName =
+  importedPGNHeaders.Event ||
+  "Khon's Chess Match";
+
+const siteName =
+  importedPGNHeaders.Site ||
+  "Khon's Bar";
+
+const pgnHeader =
+`[Event "${eventName}"]
+[Site "${siteName}"]
+[Date "${new Date()
+  .toISOString()
+  .split('T')[0]
+  .replaceAll('-', '.')}"]
+[Round "${importedPGNHeaders.Round || '-'}"]
+[White "${whiteName}"]
+[Black "${blackName}"]
 [Result "${gameResult}"]
 
 `;
@@ -1747,67 +2095,118 @@ if ('serviceWorker' in navigator) {
 // Win checking
 function checkForWin() {
   if (currentGame === 'chess') {
-    const hasLegalMoves = hasAnyLegalMoves(currentPlayer);
-    const inCheck = isInCheck(currentPlayer);
-    
+    const hasLegalMoves =
+      hasAnyLegalMoves(currentPlayer);
+
+    const inCheck =
+      isInCheck(currentPlayer);
+
     if (!hasLegalMoves) {
       if (inCheck) {
-        // Checkmate
-        const winner = currentPlayer === 'white' ? 'black' : 'white';
-        gameResult = winner === 'white' ? "1-0" : "0-1";
-        
-        // Add checkmate symbol to last move
+        const winner =
+          currentPlayer === 'white'
+            ? 'black'
+            : 'white';
+
+        gameResult =
+          winner === 'white'
+            ? '1-0'
+            : '0-1';
+
         if (pgnMoves.length > 0) {
-          const lastMove = pgnMoves[pgnMoves.length - 1];
-          const moveIndex = currentPlayer === 'white' ? 1 : 0;
-          if (lastMove[moveIndex]) {
-            lastMove[moveIndex] += '#';
+          const lastMove =
+            pgnMoves[pgnMoves.length - 1];
+
+          const moveIndex =
+            currentPlayer === 'white'
+              ? 1
+              : 0;
+
+          if (
+            lastMove[moveIndex] &&
+            !lastMove[moveIndex].endsWith('#')
+          ) {
+            lastMove[moveIndex] =
+              lastMove[moveIndex]
+                .replace(/\+$/, '') + '#';
           }
         }
-        
+
         saveGame();
         updateStatusBar();
-        
-        setTimeout(() => {
-          if (confirm(`Checkmate! ${winner === 'white' ? 'White' : 'Black'} wins! 🎉 Play again?`)) {
-            resetGame();
-          }
-        }, 100);
+
+        if (!importingPGN) {
+          setTimeout(() => {
+            const winnerName =
+              winner === 'white'
+                ? 'White'
+                : 'Black';
+
+            if (
+              confirm(
+                `Checkmate! ${winnerName} wins! 🎉 Play again?`
+              )
+            ) {
+              resetGame();
+            }
+          }, 100);
+        }
       } else {
-        // Stalemate
-        gameResult = "1/2-1/2";
+        gameResult = '1/2-1/2';
+
         saveGame();
         updateStatusBar();
-        
-        setTimeout(() => {
-          if (confirm("Stalemate! It's a draw. Play again?")) {
-            resetGame();
-          }
-        }, 100);
+
+        if (!importingPGN) {
+          setTimeout(() => {
+            if (
+              confirm(
+                "Stalemate! It's a draw. Play again?"
+              )
+            ) {
+              resetGame();
+            }
+          }, 100);
+        }
       }
     } else if (inCheck) {
-      // Add check symbol to last move
       if (pgnMoves.length > 0) {
-        const lastMove = pgnMoves[pgnMoves.length - 1];
-        const moveIndex = currentPlayer === 'white' ? 1 : 0;
-        if (lastMove[moveIndex] && !lastMove[moveIndex].endsWith('+')) {
+        const lastMove =
+          pgnMoves[pgnMoves.length - 1];
+
+        const moveIndex =
+          currentPlayer === 'white'
+            ? 1
+            : 0;
+
+        if (
+          lastMove[moveIndex] &&
+          !lastMove[moveIndex].endsWith('+') &&
+          !lastMove[moveIndex].endsWith('#')
+        ) {
           lastMove[moveIndex] += '+';
         }
       }
-    } else if (halfMoveClock >= 100) {
-      // 50-move rule (100 half-moves)
-      gameResult = "1/2-1/2";
-      saveGame();
-      updateStatusBar();
-      
-      setTimeout(() => {
-        if (confirm("Draw by 50-move rule! Play again?")) {
-          resetGame();
-        }
-      }, 100);
+    } else if (
+  halfMoveClock >= 100 &&
+  !importingPGN
+) {
+  gameResult = '1/2-1/2';
+
+  saveGame();
+  updateStatusBar();
+
+  setTimeout(() => {
+    if (
+      confirm(
+        'Draw by 50 move rule! Play again?'
+      )
+    ) {
+      resetGame();
     }
-    // TODO: Add threefold repetition detection
-  }
+  }, 100);
+ }
+}
 
   if (currentGame === 'checkers') {
     let whiteCount = 0;
@@ -1818,21 +2217,46 @@ function checkForWin() {
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const piece = gameState[row][col];
+
         if (!piece) continue;
 
         if (piece.color === 'white') {
           whiteCount++;
-          whiteMoves += getCheckersLegalMoves(row, col, piece).length;
+
+          whiteMoves +=
+            getCheckersLegalMoves(
+              row,
+              col,
+              piece
+            ).length;
         }
+
         if (piece.color === 'black') {
           blackCount++;
-          blackMoves += getCheckersLegalMoves(row, col, piece).length;
+
+          blackMoves +=
+            getCheckersLegalMoves(
+              row,
+              col,
+              piece
+            ).length;
         }
       }
     }
 
-    if (whiteCount === 0 || whiteMoves === 0) showGameOver('black');
-    if (blackCount === 0 || blackMoves === 0) showGameOver('white');
+    if (
+      whiteCount === 0 ||
+      whiteMoves === 0
+    ) {
+      showGameOver('black');
+    }
+
+    if (
+      blackCount === 0 ||
+      blackMoves === 0
+    ) {
+      showGameOver('white');
+    }
   }
 }
 
@@ -2102,6 +2526,10 @@ document.getElementById('gameSelect').addEventListener('change', (e) => {
     e.target.value = currentGame;
   }
 });
+
+document
+  .getElementById('pgnFileInput')
+  .addEventListener('change', handlePGNFileUpload);
 
 // Apply URL overrides first, then load for that game
 applyGameFromURL();
