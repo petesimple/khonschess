@@ -10,7 +10,7 @@
 <style>
 body {
   background-color: #1e1e1e;
-  color: #ffffff;
+  color: #fff;
   font-family: 'Courier New', Courier, monospace;
   display: flex;
   flex-direction: column;
@@ -140,6 +140,78 @@ body {
   color: #0f0;
   border: 1px solid #0f0;
 }
+
+.pgn-review-panel {
+  width: 90vw;
+  max-width: 480px;
+  margin-top: 10px;
+  padding: 10px;
+  box-sizing: border-box;
+  background: #222;
+  border: 1px solid #0ff;
+  border-radius: 8px;
+}
+
+.pgn-review-panel button,
+.pgn-review-panel select {
+  min-height: 38px;
+  font-family: monospace;
+  font-size: 0.95em;
+  border-radius: 6px;
+}
+
+.pgn-upload-button {
+  padding: 6px 12px;
+  background: #333;
+  color: #0ff;
+  border: 1px solid #0ff;
+}
+
+#pgnGameSelect {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  box-sizing: border-box;
+  background: #333;
+  color: #fff;
+  border: 1px solid #888;
+}
+
+.pgn-playback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pgn-playback-controls button {
+  padding: 6px 10px;
+  background: #333;
+  color: #0f0;
+  border: 1px solid #0f0;
+}
+
+.pgn-playback-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#pgnPlaybackSpeed {
+  padding: 6px;
+  background: #333;
+  color: #fff;
+  border: 1px solid #888;
+}
+
+#pgnPlaybackStatus {
+  min-height: 20px;
+  margin-top: 8px;
+  color: #0ff;
+  font-size: 0.85em;
+  text-align: center;
+}
+
 </style>
 </head>
 <body>
@@ -202,28 +274,86 @@ body {
     </button>
   </div>
 
-<div style="margin-top: 10px;">
+<div class="pgn-review-panel">
   <button
+    type="button"
+    class="pgn-upload-button"
     onclick="document.getElementById('pgnFileInput').click()"
-    style="
-      padding: 6px 12px;
-      font-size: 1em;
-      font-family: monospace;
-      border-radius: 6px;
-      background: #333;
-      color: #0ff;
-      border: 1px solid #0ff;
-    "
   >
-    ⬆️ Upload PGN
+    ⬆️ Upload PGN Games
   </button>
 
   <input
     id="pgnFileInput"
     type="file"
     accept=".pgn,text/plain,application/x-chess-pgn"
+    multiple
     hidden
   >
+
+  <select
+    id="pgnGameSelect"
+    onchange="selectImportedPGNGame(this.value)"
+    disabled
+  >
+    <option value="">No imported games</option>
+  </select>
+
+  <div class="pgn-playback-controls">
+    <button
+      id="pgnPreviousButton"
+      type="button"
+      onclick="previousImportedPGNGame()"
+      disabled
+      title="Previous game"
+    >
+      ⏮️
+    </button>
+
+    <button
+      id="pgnPlayButton"
+      type="button"
+      onclick="togglePGNPlayback()"
+      disabled
+    >
+      ▶️ Play
+    </button>
+
+    <button
+      id="pgnRestartButton"
+      type="button"
+      onclick="restartPGNPlayback()"
+      disabled
+      title="Restart current game"
+    >
+      🔄
+    </button>
+
+    <button
+      id="pgnNextButton"
+      type="button"
+      onclick="nextImportedPGNGame()"
+      disabled
+      title="Next game"
+    >
+      ⏭️
+    </button>
+
+    <select
+      id="pgnPlaybackSpeed"
+      onchange="setPGNPlaybackSpeed(this.value)"
+      title="Playback speed"
+    >
+      <option value="2000">0.5×</option>
+      <option value="1000" selected>1×</option>
+      <option value="500">2×</option>
+      <option value="250">4×</option>
+    </select>
+  </div>
+
+  <div id="pgnPlaybackStatus">
+    No PGN games loaded
+  </div>
 </div>
 
   <div style="margin-top: 10px;">
@@ -323,6 +453,15 @@ let computerLevel = 6;
 
 let importingPGN = false;
 let importedPGNHeaders = {};
+
+let importedPGNGames = [];
+let selectedPGNGameIndex = -1;
+
+let pgnPlaybackMoves = [];
+let pgnPlaybackMoveIndex = 0;
+let pgnPlaybackTimer = null;
+let pgnPlaybackDelay = 1000;
+let pgnPlaybackPaused = true;
 
 function initializeChessEngine() {
   if (chessEngine) return;
@@ -823,6 +962,11 @@ function setupBackgammonBoard() {
 }
 
 function hardResetForCurrentGame() {
+    stopPGNPlayback();
+
+  pgnPlaybackMoves = [];
+  pgnPlaybackMoveIndex = 0;
+  
   selectedSquare = null;
   legalMoves = [];
   moveHistory = [];
@@ -860,6 +1004,9 @@ function hardResetForCurrentGame() {
   drawBoard();
   updateStatusBar();
   saveGame();
+  
+  updatePGNPlaybackControls();
+  updatePGNPlaybackStatus();
 
   if (!chessEngine) {
     setTimeout(maybeStartComputerTurn, 100);
@@ -1103,6 +1250,12 @@ function drawBoard() {
 }
 
 function handleSquareClick(e) {
+    if (
+    currentGame === 'chess' &&
+    !pgnPlaybackPaused
+  ) {
+    return;
+  }
   const row = parseInt(e.currentTarget.dataset.row);
   const col = parseInt(e.currentTarget.dataset.col);
   const clickedPiece = gameState[row][col];
@@ -1716,77 +1869,66 @@ function hasAnyLegalMoves(color) {
   return false;
 }
 
-async function handlePGNFileUpload(event) {
-  const input = event.target;
-  const file = input.files?.[0];
-
-  if (!file) return;
+async function getChessConstructor() {
+  let chessModule;
 
   try {
-    const pgnText = await file.text();
-
-    if (!pgnText.trim()) {
-      throw new Error('The selected PGN file is empty.');
-    }
-
-    await importPGN(pgnText);
+    chessModule =
+      await import('./vendor/chess.js');
   } catch (error) {
-    console.error('PGN import failed:', error);
-
-    alert(
-      `Could not import that PGN.\n\n${error.message}`
-    );
-  } finally {
-    // Allows the same file to be selected again.
-    input.value = '';
-  }
-}
-
-async function importPGN(pgnText) {
-  if (currentGame !== 'chess') {
-    const switchToChess = confirm(
-      'PGN files are for chess games. Switch to Chess mode?'
+    console.error(
+      'Could not load chess.js:',
+      error
     );
 
-    if (!switchToChess) return;
-
-    currentGame = 'chess';
-
-    const gameSelect =
-      document.getElementById('gameSelect');
-
-    if (gameSelect) {
-      gameSelect.value = 'chess';
-    }
-
-    setURLParam('game', 'chess');
+    throw new Error(
+      'The PGN parser could not be loaded. Check that vendor/chess.js exists.'
+    );
   }
 
-  let Chess;
+  if (
+    typeof chessModule.Chess !==
+    'function'
+  ) {
+    throw new Error(
+      'vendor/chess.js loaded, but it does not export Chess.'
+    );
+  }
 
-try {
-  const chessModule =
-    await import('./vendor/chess.js');
-
-  Chess = chessModule.Chess;
-} catch (error) {
-  console.error(
-    'Could not load chess.js:',
-    error
-  );
-
-  throw new Error(
-    'The PGN parser could not be loaded. Check that vendor/chess.js exists.'
-  );
+  return chessModule.Chess;
 }
 
-if (typeof Chess !== 'function') {
-  throw new Error(
-    'vendor/chess.js loaded, but it does not export Chess.'
-  );
+function splitPGNCollection(pgnText) {
+  const normalized =
+    String(pgnText || '')
+      .replace(/\r\n/g, '\n')
+      .trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  /*
+    Most tournament PGNs begin each game
+    with an Event header.
+  */
+  const games = normalized
+    .split(
+      /(?=^\s*\[Event\s+"[^"]*"\]\s*$)/gm
+    )
+    .map(game => game.trim())
+    .filter(Boolean);
+
+  return games.length
+    ? games
+    : [normalized];
 }
 
-const parser = new Chess();
+async function parsePGNText(pgnText) {
+  const Chess =
+    await getChessConstructor();
+
+  const parser = new Chess();
 
   try {
     parser.loadPgn(pgnText, {
@@ -1794,29 +1936,24 @@ const parser = new Chess();
     });
   } catch (error) {
     throw new Error(
-      `The PGN parser rejected this file: ${error.message}`
+      `The PGN parser rejected this game: ${error.message}`
     );
   }
 
-  const headers = parser.getHeaders();
-  
-  const moves = parser.history({
-    verbose: true
-  });
+  const headers =
+    parser.getHeaders();
 
-  if (moves.length === 0) {
+  const moves =
+    parser.history({
+      verbose: true
+    });
+
+  if (!moves.length) {
     throw new Error(
-      'No playable chess moves were found in the PGN.'
+      'No playable chess moves were found.'
     );
   }
 
-  /*
-    First version supports normal games beginning from the
-    standard chess position.
-
-    PGNs with SetUp "1" and a FEN header require a separate
-    FEN loader.
-  */
   if (
     headers.SetUp === '1' ||
     headers.FEN
@@ -1826,100 +1963,134 @@ const parser = new Chess();
     );
   }
 
-  const approved = confirm(
-    `Import this game?\n\n` +
-    `${headers.White || 'White'} vs ` +
-    `${headers.Black || 'Black'}\n` +
-    `${moves.length} half-moves\n\n` +
-    `This will replace the current chess game.`
-  );
+  return {
+    headers,
+    moves
+  };
+}
 
-  if (!approved) return;
+async function handlePGNFileUpload(event) {
+  const input = event.target;
 
-  stopComputerForPGNImport();
+  const files =
+    Array.from(input.files || []);
 
-const previousSave =
-  localStorage.getItem('khonsChessSave_chess');
+  if (!files.length) {
+    return;
+  }
 
-importingPGN = true;
-importedPGNHeaders = { ...headers };
+  try {
+    const newGames = [];
 
-try {
-  resetChessStateForImport();
+    for (const file of files) {
+      const fileText =
+        await file.text();
 
-  for (const move of moves) {
-    const parsed =
-      verboseMoveToCoordinates(move);
+      const gameTexts =
+        splitPGNCollection(fileText);
 
-    const moved = executeChessMove(
-      parsed.fromRow,
-      parsed.fromCol,
-      parsed.toRow,
-      parsed.toCol,
-      parsed.promotion
-    );
+      for (
+        let gameIndex = 0;
+        gameIndex < gameTexts.length;
+        gameIndex++
+      ) {
+        const pgnText =
+          gameTexts[gameIndex];
 
-    if (!moved) {
+        try {
+          const parsed =
+            await parsePGNText(pgnText);
+
+          newGames.push({
+            id:
+              `${Date.now()}-${Math.random()}`,
+            filename: file.name,
+            fileGameIndex: gameIndex,
+            pgnText,
+            headers: {
+              ...parsed.headers
+            },
+            moves: parsed.moves
+          });
+        } catch (error) {
+          console.warn(
+            `Skipped game ${
+              gameIndex + 1
+            } in ${file.name}:`,
+            error
+          );
+        }
+      }
+    }
+
+    if (!newGames.length) {
       throw new Error(
-        `Khon's Chess rejected move ${
-          move.san ||
-          move.lan ||
-          move.from + move.to
-        }.`
+        'No readable PGN games were found in the selected files.'
       );
     }
-  }
 
-  if (
-    headers.Result &&
-    ['1-0', '0-1', '1/2-1/2']
-      .includes(headers.Result)
-  ) {
-    gameResult = headers.Result;
-  }
-
-  saveGame();
-  drawBoard();
-  updateStatusBar();
-
-  const whiteName =
-    headers.White || 'White';
-
-  const blackName =
-    headers.Black || 'Black';
-
-  alert(
-    `PGN imported successfully!\n\n` +
-    `${whiteName} vs ${blackName}\n` +
-    `${moves.length} half-moves loaded.`
-  );
-} catch (error) {
-  console.error(
-    'Could not replay imported PGN:',
-    error
-  );
-
-  importingPGN = false;
-
-  if (previousSave) {
-    localStorage.setItem(
-      'khonsChessSave_chess',
-      previousSave
+    const approved = confirm(
+      `Load ${newGames.length} PGN game${
+        newGames.length === 1
+          ? ''
+          : 's'
+      }?\n\n` +
+      `The first game will be prepared for playback.`
     );
 
-    loadGame();
-  } else {
-    importedPGNHeaders = {};
-    resetChessStateForImport();
-    saveGame();
-    drawBoard();
-    updateStatusBar();
-  }
+    if (!approved) {
+      return;
+    }
 
-  throw error;
-} finally {
-  importingPGN = false;
-}
+    if (currentGame !== 'chess') {
+      currentGame = 'chess';
+
+      const gameSelect =
+        document.getElementById(
+          'gameSelect'
+        );
+
+      if (gameSelect) {
+        gameSelect.value = 'chess';
+      }
+
+      setURLParam(
+        'game',
+        'chess'
+      );
+    }
+
+    stopComputerForPGNImport();
+
+    importedPGNGames =
+      newGames;
+
+    selectedPGNGameIndex = 0;
+
+    saveImportedPGNPlaylist();
+    updatePGNPlaylistUI();
+
+    await loadImportedPGNGame(0);
+
+    alert(
+      `${newGames.length} PGN game${
+        newGames.length === 1
+          ? ''
+          : 's'
+      } loaded.\n\nPress Play to review the first game.`
+    );
+  } catch (error) {
+    console.error(
+      'PGN import failed:',
+      error
+    );
+
+    alert(
+      `Could not import the selected PGN files.\n\n${error.message}`
+    );
+  } finally {
+    input.value = '';
+  }
 }
 
 function verboseMoveToCoordinates(move) {
@@ -2058,6 +2229,710 @@ const pgnHeader =
   a.download = 'khons-chess-game.pgn';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function getImportedPGNGameLabel(
+  game,
+  index
+) {
+  const headers =
+    game.headers || {};
+
+  const white =
+    headers.White || 'White';
+
+  const black =
+    headers.Black || 'Black';
+
+  const event =
+    headers.Event || '';
+
+  let label =
+    `${index + 1}. ` +
+    `${white} vs ${black}`;
+
+  if (event) {
+    label += ` — ${event}`;
+  }
+
+  return label;
+}
+
+function updatePGNPlaylistUI() {
+  const select =
+    document.getElementById(
+      'pgnGameSelect'
+    );
+
+  const previousButton =
+    document.getElementById(
+      'pgnPreviousButton'
+    );
+
+  const nextButton =
+    document.getElementById(
+      'pgnNextButton'
+    );
+
+  const playButton =
+    document.getElementById(
+      'pgnPlayButton'
+    );
+
+  const restartButton =
+    document.getElementById(
+      'pgnRestartButton'
+    );
+
+  if (
+    !select ||
+    !previousButton ||
+    !nextButton ||
+    !playButton ||
+    !restartButton
+  ) {
+    return;
+  }
+
+  select.innerHTML = '';
+
+  if (!importedPGNGames.length) {
+    const option =
+      document.createElement(
+        'option'
+      );
+
+    option.value = '';
+    option.textContent =
+      'No imported games';
+
+    select.appendChild(option);
+
+    select.disabled = true;
+    previousButton.disabled = true;
+    nextButton.disabled = true;
+    playButton.disabled = true;
+    restartButton.disabled = true;
+
+    updatePGNPlaybackStatus(
+      'No PGN games loaded'
+    );
+
+    return;
+  }
+
+  importedPGNGames.forEach(
+    (game, index) => {
+      const option =
+        document.createElement(
+          'option'
+        );
+
+      option.value =
+        String(index);
+
+      option.textContent =
+        getImportedPGNGameLabel(
+          game,
+          index
+        );
+
+      select.appendChild(option);
+    }
+  );
+
+  select.value =
+    String(selectedPGNGameIndex);
+
+  select.disabled = false;
+  playButton.disabled = false;
+  restartButton.disabled = false;
+
+  const hasSeveralGames =
+    importedPGNGames.length > 1;
+
+  previousButton.disabled =
+    !hasSeveralGames;
+
+  nextButton.disabled =
+    !hasSeveralGames;
+
+  updatePGNPlaybackControls();
+}
+
+async function selectImportedPGNGame(
+  selectedValue
+) {
+  const index =
+    Number(selectedValue);
+
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= importedPGNGames.length
+  ) {
+    return;
+  }
+
+  await loadImportedPGNGame(index);
+}
+
+async function previousImportedPGNGame() {
+  if (
+    importedPGNGames.length < 2
+  ) {
+    return;
+  }
+
+  const previousIndex =
+    (
+      selectedPGNGameIndex -
+      1 +
+      importedPGNGames.length
+    ) %
+    importedPGNGames.length;
+
+  await loadImportedPGNGame(
+    previousIndex
+  );
+}
+
+async function nextImportedPGNGame() {
+  if (
+    importedPGNGames.length < 2
+  ) {
+    return;
+  }
+
+  const nextIndex =
+    (
+      selectedPGNGameIndex + 1
+    ) %
+    importedPGNGames.length;
+
+  await loadImportedPGNGame(
+    nextIndex
+  );
+}
+
+async function loadImportedPGNGame(
+  index
+) {
+  stopPGNPlayback();
+
+  const game =
+    importedPGNGames[index];
+
+  if (!game) {
+    return;
+  }
+
+  try {
+    if (currentGame !== 'chess') {
+      currentGame = 'chess';
+
+      const gameSelect =
+        document.getElementById(
+          'gameSelect'
+        );
+
+      if (gameSelect) {
+        gameSelect.value = 'chess';
+      }
+
+      setURLParam(
+        'game',
+        'chess'
+      );
+    }
+
+    stopComputerForPGNImport();
+
+    let moves = game.moves;
+
+    if (!Array.isArray(moves)) {
+      const parsed =
+        await parsePGNText(
+          game.pgnText
+        );
+
+      game.headers = {
+        ...parsed.headers
+      };
+
+      game.moves =
+        parsed.moves;
+
+      moves =
+        parsed.moves;
+    }
+
+    selectedPGNGameIndex =
+      index;
+
+    importedPGNHeaders = {
+      ...(game.headers || {})
+    };
+
+    pgnPlaybackMoves =
+      moves;
+
+    pgnPlaybackMoveIndex = 0;
+    pgnPlaybackPaused = true;
+
+    resetChessStateForImport();
+
+    saveGame();
+    drawBoard();
+    updateStatusBar();
+
+    updatePGNPlaylistUI();
+    updatePGNPlaybackStatus();
+
+    saveImportedPGNPlaylist();
+  } catch (error) {
+    console.error(
+      'Could not load PGN game:',
+      error
+    );
+
+    alert(
+      `Could not load that PGN game.\n\n${error.message}`
+    );
+  }
+}
+
+async function togglePGNPlayback() {
+  if (
+    !pgnPlaybackMoves.length &&
+    selectedPGNGameIndex >= 0
+  ) {
+    await loadImportedPGNGame(
+      selectedPGNGameIndex
+    );
+  }
+
+  if (!pgnPlaybackMoves.length) {
+    return;
+  }
+
+  if (!pgnPlaybackPaused) {
+    pausePGNPlayback();
+    return;
+  }
+
+  if (
+    pgnPlaybackMoveIndex >=
+    pgnPlaybackMoves.length
+  ) {
+    restartPGNPlayback();
+  }
+
+  pgnPlaybackPaused = false;
+
+  updatePGNPlaybackControls();
+  updatePGNPlaybackStatus();
+
+  scheduleNextPGNMove();
+}
+
+function pausePGNPlayback() {
+  pgnPlaybackPaused = true;
+
+  if (pgnPlaybackTimer) {
+    clearTimeout(
+      pgnPlaybackTimer
+    );
+
+    pgnPlaybackTimer = null;
+  }
+
+  updatePGNPlaybackControls();
+  updatePGNPlaybackStatus();
+}
+
+function stopPGNPlayback() {
+  pgnPlaybackPaused = true;
+
+  if (pgnPlaybackTimer) {
+    clearTimeout(
+      pgnPlaybackTimer
+    );
+
+    pgnPlaybackTimer = null;
+  }
+}
+
+function restartPGNPlayback() {
+  stopPGNPlayback();
+
+  if (!pgnPlaybackMoves.length) {
+    return;
+  }
+
+  resetChessStateForImport();
+
+  pgnPlaybackMoveIndex = 0;
+
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+
+  updatePGNPlaybackControls();
+  updatePGNPlaybackStatus();
+}
+
+function scheduleNextPGNMove() {
+  if (pgnPlaybackPaused) {
+    return;
+  }
+
+  if (
+    pgnPlaybackMoveIndex >=
+    pgnPlaybackMoves.length
+  ) {
+    finishPGNPlayback();
+    return;
+  }
+
+  pgnPlaybackTimer =
+    setTimeout(
+      playNextPGNMove,
+      pgnPlaybackDelay
+    );
+}
+
+function playNextPGNMove() {
+  pgnPlaybackTimer = null;
+  
+  if (pgnPlaybackPaused) {
+    return;
+  }
+
+  const move =
+    pgnPlaybackMoves[
+      pgnPlaybackMoveIndex
+    ];
+
+  if (!move) {
+    finishPGNPlayback();
+    return;
+  }
+
+  try {
+    importingPGN = true;
+
+    const parsed =
+      verboseMoveToCoordinates(
+        move
+      );
+
+    const moved =
+      executeChessMove(
+        parsed.fromRow,
+        parsed.fromCol,
+        parsed.toRow,
+        parsed.toCol,
+        parsed.promotion
+      );
+
+    if (!moved) {
+      throw new Error(
+        `Khon's Chess rejected ${
+          move.san ||
+          move.lan ||
+          move.from + move.to
+        }.`
+      );
+    }
+
+    pgnPlaybackMoveIndex++;
+
+    updatePGNPlaybackStatus();
+  } catch (error) {
+    console.error(
+      'PGN playback stopped:',
+      error
+    );
+
+    pausePGNPlayback();
+
+    alert(
+      `Playback stopped at half-move ${
+        pgnPlaybackMoveIndex + 1
+      }.\n\n${error.message}`
+    );
+
+    return;
+  } finally {
+    importingPGN = false;
+  }
+
+  scheduleNextPGNMove();
+}
+
+function finishPGNPlayback() {
+  stopPGNPlayback();
+
+  const result =
+    importedPGNHeaders.Result;
+
+  if (
+    result &&
+    [
+      '1-0',
+      '0-1',
+      '1/2-1/2'
+    ].includes(result)
+  ) {
+    gameResult = result;
+  }
+
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+
+  updatePGNPlaybackControls();
+  updatePGNPlaybackStatus(
+    'Game complete'
+  );
+}
+
+function setPGNPlaybackSpeed(value) {
+  const delay =
+    Number(value);
+
+  if (
+    !Number.isFinite(delay) ||
+    delay < 100
+  ) {
+    return;
+  }
+
+  pgnPlaybackDelay =
+    delay;
+
+  localStorage.setItem(
+    'khonsChessPGNPlaybackDelay',
+    String(delay)
+  );
+
+  if (!pgnPlaybackPaused) {
+    if (pgnPlaybackTimer) {
+      clearTimeout(
+        pgnPlaybackTimer
+      );
+
+      pgnPlaybackTimer = null;
+    }
+
+    scheduleNextPGNMove();
+  }
+}
+
+function updatePGNPlaybackControls() {
+  const playButton =
+    document.getElementById(
+      'pgnPlayButton'
+    );
+
+  if (!playButton) {
+    return;
+  }
+
+  if (
+    pgnPlaybackMoves.length &&
+    pgnPlaybackMoveIndex >=
+      pgnPlaybackMoves.length
+  ) {
+    playButton.textContent =
+      '▶️ Replay';
+
+    return;
+  }
+
+  playButton.textContent =
+    pgnPlaybackPaused
+      ? '▶️ Play'
+      : '⏸️ Pause';
+}
+
+function updatePGNPlaybackStatus(
+  customMessage = ''
+) {
+  const status =
+    document.getElementById(
+      'pgnPlaybackStatus'
+    );
+
+  if (!status) {
+    return;
+  }
+
+  if (customMessage) {
+    status.textContent =
+      customMessage;
+
+    return;
+  }
+
+  if (
+    selectedPGNGameIndex < 0 ||
+    !importedPGNGames.length
+  ) {
+    status.textContent =
+      'No PGN games loaded';
+
+    return;
+  }
+
+  const gameNumber =
+    selectedPGNGameIndex + 1;
+
+  const gameCount =
+    importedPGNGames.length;
+
+  const completedHalfMoves =
+    pgnPlaybackMoveIndex;
+
+  const totalHalfMoves =
+    pgnPlaybackMoves.length;
+
+  const fullMove =
+    Math.floor(
+      completedHalfMoves / 2
+    ) + 1;
+
+  const side =
+    completedHalfMoves % 2 === 0
+      ? 'White'
+      : 'Black';
+
+  status.textContent =
+    `Game ${gameNumber} of ${gameCount} • ` +
+    `Move ${fullMove}, ${side} • ` +
+    `${completedHalfMoves}/${totalHalfMoves} half-moves`;
+}
+
+function saveImportedPGNPlaylist() {
+  const gamesToSave =
+    importedPGNGames.map(game => ({
+      id: game.id,
+      filename: game.filename,
+      fileGameIndex:
+        game.fileGameIndex,
+      pgnText: game.pgnText,
+      headers:
+        game.headers || {}
+    }));
+
+  localStorage.setItem(
+    'khonsChessImportedPGNs',
+    JSON.stringify({
+      games: gamesToSave,
+      selectedIndex:
+        selectedPGNGameIndex
+    })
+  );
+}
+
+function restoreImportedPGNPlaylist() {
+  try {
+    const saved =
+      localStorage.getItem(
+        'khonsChessImportedPGNs'
+      );
+
+    if (!saved) {
+      updatePGNPlaylistUI();
+      return;
+    }
+
+    const parsed =
+      JSON.parse(saved);
+
+    importedPGNGames =
+      Array.isArray(parsed.games)
+        ? parsed.games
+        : [];
+
+    if (
+      importedPGNGames.length
+    ) {
+      selectedPGNGameIndex =
+        Number.isInteger(
+          parsed.selectedIndex
+        )
+          ? Math.min(
+              Math.max(
+                parsed.selectedIndex,
+                0
+              ),
+              importedPGNGames.length -
+                1
+            )
+          : 0;
+    } else {
+      selectedPGNGameIndex = -1;
+    }
+
+    const savedDelay =
+      Number(
+        localStorage.getItem(
+          'khonsChessPGNPlaybackDelay'
+        )
+      );
+
+    if (
+      Number.isFinite(savedDelay) &&
+      savedDelay >= 100
+    ) {
+      pgnPlaybackDelay =
+        savedDelay;
+
+      const speedSelect =
+        document.getElementById(
+          'pgnPlaybackSpeed'
+        );
+
+      if (speedSelect) {
+        speedSelect.value =
+          String(savedDelay);
+      }
+    }
+
+    updatePGNPlaylistUI();
+
+    if (
+      selectedPGNGameIndex >= 0
+    ) {
+      const select =
+        document.getElementById(
+          'pgnGameSelect'
+        );
+
+      if (select) {
+        select.value =
+          String(
+            selectedPGNGameIndex
+          );
+      }
+
+      updatePGNPlaybackStatus(
+        'Playlist restored. Select a game or press Play.'
+      );
+    }
+  } catch (error) {
+    console.warn(
+      'Could not restore PGN playlist:',
+      error
+    );
+
+    importedPGNGames = [];
+    selectedPGNGameIndex = -1;
+
+    updatePGNPlaylistUI();
+  }
 }
 
 function changeTheme(theme) {
@@ -2508,6 +3383,8 @@ function highlightAvailableDestinations(fromIndex) {
 
 // Game select handling
 document.getElementById('gameSelect').addEventListener('change', (e) => {
+  stopPGNPlayback();
+
   const newGame = e.target.value;
   if (newGame === currentGame) return;
 
@@ -2541,10 +3418,11 @@ setURLParam('theme', currentTheme);
 
 loadGame();
 loadComputerSettings();
+restoreImportedPGNPlaylist();
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 2.8.0 (Offline Computer Player)
+  Version 2.9.0 (PGN Playlist and Playback)
 </div>
 
 </body>
