@@ -10,7 +10,7 @@
 <style>
 body {
   background-color: #1e1e1e;
-  color: #ffffff;
+  color: #fff;
   font-family: 'Courier New', Courier, monospace;
   display: flex;
   flex-direction: column;
@@ -212,210 +212,521 @@ body {
   text-align: center;
 }
 
+.tools-panel {
+  width: 90vw;
+  max-width: 480px;
+  margin-top: 20px;
+  background: #222;
+  border: 1px solid #888;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tools-panel summary {
+  padding: 12px 14px;
+  background: #2b2b2b;
+  color: #fff;
+  font-family: monospace;
+  font-size: 1.05em;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.tools-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.tools-panel summary::after {
+  content: "▼";
+  float: right;
+  color: #0ff;
+}
+
+.tools-panel[open] summary::after {
+  content: "▲";
+}
+
+.tools-panel-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.tool-section {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  background: #292929;
+  border: 1px solid #555;
+  border-radius: 8px;
+}
+
+.tool-section-title {
+  margin-bottom: 8px;
+  color: #0ff;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-align: left;
+}
+
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.tools-panel .pgn-review-panel {
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+.tools-panel #computerControls {
+  width: 100% !important;
+  max-width: none !important;
+  margin-top: 0 !important;
+  box-sizing: border-box;
+}
+
 </style>
 </head>
+
 <body>
 
-<div class="logo-wrapper">
-  <div id="logoContainer" onclick="toggleQR()" style="position: relative; display: inline-block;">
-    <img id="logoImage" src="./kclogo.png" alt="Khons Chess logo" class="logo">
-    <div id="qrOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 2em; font-weight: bold; justify-content: center; align-items: center;">Share</div>
-  </div>
+  <div class="logo-wrapper">
 
-  <div style="margin: 10px;">
-    <label for="themeSelect">Theme:</label>
-    <select id="themeSelect" onchange="changeTheme(this.value)">
-      <option value="classic">Classic</option>
-      <option value="comp">Competition</option>
-      <option value="poison">Poison Pawns</option>
-      <option value="firefly">Firefly</option>
-      <option value="starwars">StarWars</option>
-      <option value="startrek">StarTrek</option>
-      <option value="300">300</option>
-      <option value="dracula">Dracula vs V. Hunter</option>
-      <option value="SamvsVik">Samurai vs Vikings</option>
-      <option value="Dinos">Dinos vs Dino-Ghosts</option>
-      <option value="SFIFF">SFIFF</option>
-    </select>
-  </div>
-
-  <div id="statusBar" class="status-bar">White to move</div>
-
-  <div id="chessboard"></div>
-
-  <div id="backgammonControls" style="display:none; margin-top:10px;">
-    <button id="rollDiceBtn" style="padding:6px 12px; font-size:1em;">🎲 Roll Dice</button>
-    <button id="endTurnBtn" style="padding:6px 12px; font-size:1em;">⏭️ End Turn</button>
-    <div id="diceDisplay" style="margin-top:6px; font-size:1.2em; color:#0f0;"></div>
-  </div>
-
-  <div id="moveLog" style="
-    margin-top: 75px;
-    width: 90vw;
-    max-width: 480px;
-    background: #222;
-    color: #0f0;
-    font-family: monospace;
-    font-size: 0.95em;
-    padding: 16px;
-    border-radius: 8px;
-    max-height: 160px;
-    overflow-y: auto;
-    line-height: 1.6;
-    box-shadow: 0 0 5px #0f0;
-    scroll-behavior: smooth;
-  ">
-    <strong>Move Log:</strong><br>
-  </div>
-
-  <div style="margin-top: 10px;">
-    <button onclick="downloadPGN()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #333; color: #0f0; border: 1px solid #0f0;">
-      ⬇️ Download PGN
-    </button>
-  </div>
-
-<div class="pgn-review-panel">
-  <button
-    type="button"
-    class="pgn-upload-button"
-    onclick="document.getElementById('pgnFileInput').click()"
-  >
-    ⬆️ Upload PGN Games
-  </button>
-
-  <input
-    id="pgnFileInput"
-    type="file"
-    accept=".pgn,text/plain,application/x-chess-pgn"
-    multiple
-    hidden
-  >
-
-  <select
-    id="pgnGameSelect"
-    onchange="selectImportedPGNGame(this.value)"
-    disabled
-  >
-    <option value="">No imported games</option>
-  </select>
-
-  <div class="pgn-playback-controls">
-    <button
-      id="pgnPreviousButton"
-      type="button"
-      onclick="previousImportedPGNGame()"
-      disabled
-      title="Previous game"
+    <div
+      id="logoContainer"
+      onclick="toggleQR()"
+      style="
+        position: relative;
+        display: inline-block;
+      "
     >
-      ⏮️
-    </button>
+      <img
+        id="logoImage"
+        src="./kclogo.png"
+        alt="Khon's Chess logo"
+        class="logo"
+      >
 
-    <button
-      id="pgnPlayButton"
-      type="button"
-      onclick="togglePGNPlayback()"
-      disabled
-    >
-      ▶️ Play
-    </button>
+      <div
+        id="qrOverlay"
+        style="
+          display: none;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.6);
+          color: #fff;
+          font-size: 2em;
+          font-weight: bold;
+          justify-content: center;
+          align-items: center;
+        "
+      >
+        Share
+      </div>
+    </div>
 
-    <button
-      id="pgnRestartButton"
-      type="button"
-      onclick="restartPGNPlayback()"
-      disabled
-      title="Restart current game"
+    <div
+      id="statusBar"
+      class="status-bar"
     >
-      🔄
-    </button>
+      White to move
+    </div>
 
-    <button
-      id="pgnNextButton"
-      type="button"
-      onclick="nextImportedPGNGame()"
-      disabled
-      title="Next game"
-    >
-      ⏭️
-    </button>
+    <div id="chessboard"></div>
 
-    <select
-      id="pgnPlaybackSpeed"
-      onchange="setPGNPlaybackSpeed(this.value)"
-      title="Playback speed"
+    <div
+      id="backgammonControls"
+      style="
+        display: none;
+        margin-top: 10px;
+      "
     >
-      <option value="2000">0.5×</option>
-      <option value="1000" selected>1×</option>
-      <option value="500">2×</option>
-      <option value="250">4×</option>
-    </select>
+      <button
+        id="rollDiceBtn"
+        style="
+          padding: 6px 12px;
+          font-size: 1em;
+        "
+      >
+        🎲 Roll Dice
+      </button>
+
+      <button
+        id="endTurnBtn"
+        style="
+          padding: 6px 12px;
+          font-size: 1em;
+        "
+      >
+        ⏭️ End Turn
+      </button>
+
+      <div
+        id="diceDisplay"
+        style="
+          margin-top: 6px;
+          font-size: 1.2em;
+          color: #0f0;
+        "
+      ></div>
+    </div>
+
+    <div
+      id="moveLog"
+      style="
+        margin-top: 75px;
+        width: 90vw;
+        max-width: 480px;
+        box-sizing: border-box;
+        background: #222;
+        color: #0f0;
+        font-family: monospace;
+        font-size: 0.95em;
+        padding: 16px;
+        border-radius: 8px;
+        max-height: 160px;
+        overflow-y: auto;
+        line-height: 1.6;
+        box-shadow: 0 0 5px #0f0;
+        scroll-behavior: smooth;
+      "
+    >
+      <strong>Move Log:</strong><br>
+    </div>
+
   </div>
 
-  <div id="pgnPlaybackStatus">
-    No PGN games loaded
-  </div>
-</div>
+  <details class="tools-panel">
+    <summary>⚙️ Tools &amp; Settings</summary>
 
-  <div style="margin-top: 10px;">
-    <button onclick="resetGame()" style="padding: 6px 12px; font-size: 1em; font-family: monospace; border-radius: 6px; background: #900; color: #fff; border: 1px solid #f00;">
-      🔁 Reset Game
-    </button>
+    <div class="tools-panel-content">
 
-    <label for="gameSelect">Game:</label>
-    <select id="gameSelect">
-      <option value="chess">Chess</option>
-      <option value="checkers">Checkers</option>
-      <option value="backgammon">Backgammon</option>
-    </select>
-  </div>
-</div>
+      <div class="tool-section">
+        <div class="tool-section-title">
+          Appearance
+        </div>
 
-<div id="computerControls" style="
-  margin-top: 12px;
-  padding: 10px;
-  background: #222;
-  border: 1px solid #0f0;
-  border-radius: 8px;
-  width: 90vw;
-  max-width: 460px;
-">
-  <label>
-    <input type="checkbox" id="computerEnabled">
-    Play against computer (chess only)
-  </label>
+        <div class="tool-row">
+          <label for="themeSelect">
+            Theme:
+          </label>
 
-  <label for="computerColor" style="margin-left: 10px;">
-    Computer:
-  </label>
+          <select
+            id="themeSelect"
+            onchange="changeTheme(this.value)"
+          >
+            <option value="classic">
+              Classic
+            </option>
 
-  <select id="computerColor">
-    <option value="black">Black</option>
-    <option value="white">White</option>
-  </select>
+            <option value="comp">
+              Competition
+            </option>
 
-  <label for="computerLevel" style="margin-left: 10px;">
-    Level:
-  </label>
+            <option value="poison">
+              Poison Pawns
+            </option>
 
-  <select id="computerLevel">
-    <option value="0">Sleepy Pigeon</option>
-    <option value="3">Beginner</option>
-    <option value="6" selected>Casual</option>
-    <option value="10">Club Player</option>
-    <option value="15">Serious Business</option>
-    <option value="20">Khon Has Made A Mistake</option>
-  </select>
+            <option value="firefly">
+              Firefly
+            </option>
 
-  <div id="engineStatus" style="
-    margin-top: 8px;
-    color: #aaa;
-    font-size: 0.85em;
-  ">
-    Computer player off
-  </div>
-</div>
-  
+            <option value="starwars">
+              StarWars
+            </option>
+
+            <option value="startrek">
+              StarTrek
+            </option>
+
+            <option value="300">
+              300
+            </option>
+
+            <option value="dracula">
+              Dracula vs V. Hunter
+            </option>
+
+            <option value="SamvsVik">
+              Samurai vs Vikings
+            </option>
+
+            <option value="Dinos">
+              Dinos vs Dino-Ghosts
+            </option>
+
+            <option value="SFIFF">
+              SFIFF
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">
+          Game
+        </div>
+
+        <div class="tool-row">
+          <button
+            type="button"
+            onclick="resetGame()"
+            style="
+              padding: 6px 12px;
+              font-size: 1em;
+              font-family: monospace;
+              border-radius: 6px;
+              background: #900;
+              color: #fff;
+              border: 1px solid #f00;
+            "
+          >
+            🔁 Reset Game
+          </button>
+
+          <label for="gameSelect">
+            Game:
+          </label>
+
+          <select id="gameSelect">
+            <option value="chess">
+              Chess
+            </option>
+
+            <option value="checkers">
+              Checkers
+            </option>
+
+            <option value="backgammon">
+              Backgammon
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">
+          PGN Files
+        </div>
+
+        <div class="tool-row">
+          <button
+            type="button"
+            onclick="downloadPGN()"
+            style="
+              padding: 6px 12px;
+              font-size: 1em;
+              font-family: monospace;
+              border-radius: 6px;
+              background: #333;
+              color: #0f0;
+              border: 1px solid #0f0;
+            "
+          >
+            ⬇️ Download PGN
+          </button>
+        </div>
+
+        <div class="pgn-review-panel">
+
+          <button
+            type="button"
+            class="pgn-upload-button"
+            onclick="document.getElementById('pgnFileInput').click()"
+          >
+            ⬆️ Upload PGN Games
+          </button>
+
+          <input
+            id="pgnFileInput"
+            type="file"
+            accept=".pgn,text/plain,application/x-chess-pgn"
+            multiple
+            hidden
+          >
+
+          <select
+            id="pgnGameSelect"
+            onchange="selectImportedPGNGame(this.value)"
+            disabled
+          >
+            <option value="">
+              No imported games
+            </option>
+          </select>
+
+          <div class="pgn-playback-controls">
+
+            <button
+              id="pgnPreviousButton"
+              type="button"
+              onclick="previousImportedPGNGame()"
+              disabled
+              title="Previous game"
+            >
+              ⏮️
+            </button>
+
+            <button
+              id="pgnPlayButton"
+              type="button"
+              onclick="togglePGNPlayback()"
+              disabled
+              title="Play or pause"
+            >
+              ▶️ Play
+            </button>
+
+            <button
+              id="pgnRestartButton"
+              type="button"
+              onclick="restartPGNPlayback()"
+              disabled
+              title="Restart current game"
+            >
+              🔄
+            </button>
+
+            <button
+              id="pgnNextButton"
+              type="button"
+              onclick="nextImportedPGNGame()"
+              disabled
+              title="Next game"
+            >
+              ⏭️
+            </button>
+
+            <select
+              id="pgnPlaybackSpeed"
+              onchange="setPGNPlaybackSpeed(this.value)"
+              title="Playback speed"
+            >
+              <option value="2000">
+                0.5×
+              </option>
+
+              <option
+                value="1000"
+                selected
+              >
+                1×
+              </option>
+
+              <option value="500">
+                2×
+              </option>
+
+              <option value="250">
+                4×
+              </option>
+            </select>
+
+          </div>
+
+          <div id="pgnPlaybackStatus">
+            No PGN games loaded
+          </div>
+
+        </div>
+      </div>
+
+      <div
+        id="computerControls"
+        class="tool-section"
+      >
+        <div class="tool-section-title">
+          Computer Player
+        </div>
+
+        <div class="tool-row">
+
+          <label>
+            <input
+              type="checkbox"
+              id="computerEnabled"
+            >
+            Play against computer
+          </label>
+
+          <label for="computerColor">
+            Computer:
+          </label>
+
+          <select id="computerColor">
+            <option value="black">
+              Black
+            </option>
+
+            <option value="white">
+              White
+            </option>
+          </select>
+
+          <label for="computerLevel">
+            Level:
+          </label>
+
+          <select id="computerLevel">
+            <option value="0">
+              Sleepy Pigeon
+            </option>
+
+            <option value="3">
+              Beginner
+            </option>
+
+            <option
+              value="6"
+              selected
+            >
+              Casual
+            </option>
+
+            <option value="10">
+              Club Player
+            </option>
+
+            <option value="15">
+              Serious Business
+            </option>
+
+            <option value="20">
+              Khon Has Made A Mistake
+            </option>
+          </select>
+
+        </div>
+
+        <div
+          id="engineStatus"
+          style="
+            margin-top: 8px;
+            color: #aaa;
+            font-size: 0.85em;
+          "
+        >
+          Computer player off
+        </div>
+      </div>
+
+    </div>
+  </details>
+
 <script>
+  
 const board = document.getElementById('chessboard');
 
 let gameState = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -1006,7 +1317,14 @@ function hardResetForCurrentGame() {
   saveGame();
   
   updatePGNPlaybackControls();
+
+if (importedPGNGames.length) {
+  updatePGNPlaybackStatus(
+    'Board reset. Press Play to reload the selected PGN.'
+  );
+} else {
   updatePGNPlaybackStatus();
+}
 
   if (!chessEngine) {
     setTimeout(maybeStartComputerTurn, 100);
