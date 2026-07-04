@@ -294,6 +294,101 @@ body {
   box-sizing: border-box;
 }
 
+.chess-clock {
+  display: none;
+  width: 90vw;
+  max-width: 480px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.clock-player {
+  padding: 10px;
+  box-sizing: border-box;
+  background: #222;
+  border: 2px solid #666;
+  border-radius: 8px;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.clock-player.active {
+  background: #293329;
+  border-color: #0f0;
+  box-shadow: 0 0 8px #0f0;
+}
+
+.clock-player.flagged {
+  background: #3a1616;
+  border-color: #f00;
+  box-shadow: 0 0 8px #f00;
+}
+
+.clock-player-name {
+  margin-bottom: 3px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.clock-time {
+  font-size: clamp(1.7em, 8vw, 2.6em);
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-delay {
+  min-height: 18px;
+  margin-top: 2px;
+  color: #0ff;
+  font-size: 0.78em;
+}
+
+.clock-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.clock-settings-row button,
+.clock-settings-row select {
+  min-height: 36px;
+  padding: 6px 9px;
+  font-family: monospace;
+  border-radius: 6px;
+}
+
+.clock-start-button {
+  background: #164d16;
+  color: #fff;
+  border: 1px solid #0f0;
+}
+
+.clock-pause-button {
+  background: #554600;
+  color: #fff;
+  border: 1px solid #ff0;
+}
+
+.clock-reset-button {
+  background: #700;
+  color: #fff;
+  border: 1px solid #f00;
+}
+
+#clockStatus {
+  min-height: 18px;
+  margin-top: 8px;
+  color: #aaa;
+  font-size: 0.82em;
+  text-align: center;
+}
+
 </style>
 </head>
 
@@ -338,13 +433,60 @@ body {
     </div>
 
     <div
-      id="statusBar"
-      class="status-bar"
-    >
-      White to move
+  id="statusBar"
+  class="status-bar"
+>
+  White to move
+</div>
+
+<div
+  id="chessClock"
+  class="chess-clock"
+>
+  <div
+    id="whiteClockPanel"
+    class="clock-player"
+  >
+    <div class="clock-player-name">
+      White
     </div>
 
-    <div id="chessboard"></div>
+    <div
+      id="whiteClockTime"
+      class="clock-time"
+    >
+      05:00
+    </div>
+
+    <div
+      id="whiteClockDelay"
+      class="clock-delay"
+    ></div>
+  </div>
+
+  <div
+    id="blackClockPanel"
+    class="clock-player"
+  >
+    <div class="clock-player-name">
+      Black
+    </div>
+
+    <div
+      id="blackClockTime"
+      class="clock-time"
+    >
+      05:00
+    </div>
+
+    <div
+      id="blackClockDelay"
+      class="clock-delay"
+    ></div>
+  </div>
+</div>
+
+<div id="chessboard"></div>
 
     <div
       id="backgammonControls"
@@ -515,6 +657,85 @@ body {
           </select>
         </div>
       </div>
+
+<div
+  id="clockControls"
+  class="tool-section"
+>
+  <div class="tool-section-title">
+    Chess Clock
+  </div>
+
+  <div class="clock-settings-row">
+    <label>
+      <input
+        id="clockEnabled"
+        type="checkbox"
+      >
+      Enable clock
+    </label>
+
+    <label for="clockPreset">
+      Control:
+    </label>
+
+    <select id="clockPreset">
+      <option value="3+2">
+        3+2 Increment
+      </option>
+
+      <option value="5+0" selected>
+        5+0
+      </option>
+
+      <option value="10+0">
+        10+0
+      </option>
+
+      <option value="25d5">
+        25/5 Delay
+      </option>
+
+      <option value="60d5">
+        G/60;d5 Delay
+      </option>
+    </select>
+  </div>
+
+  <div
+    class="clock-settings-row"
+    style="margin-top: 8px;"
+  >
+    <button
+      id="clockStartButton"
+      type="button"
+      class="clock-start-button"
+    >
+      ▶️ Start
+    </button>
+
+    <button
+      id="clockPauseButton"
+      type="button"
+      class="clock-pause-button"
+      disabled
+    >
+      ⏸️ Pause
+    </button>
+
+    <button
+      id="clockResetButton"
+      type="button"
+      class="clock-reset-button"
+    >
+      🔄 Reset Clock
+    </button>
+  </div>
+
+  <div id="clockStatus">
+    Clock disabled
+  </div>
+</div>
 
       <div class="tool-section">
         <div class="tool-section-title">
@@ -774,6 +995,64 @@ let pgnPlaybackTimer = null;
 let pgnPlaybackDelay = 1000;
 let pgnPlaybackPaused = true;
 
+const CLOCK_PRESETS = {
+  '3+2': {
+    label: '3+2 Increment',
+    baseMinutes: 3,
+    mode: 'increment',
+    bonusSeconds: 2
+  },
+
+  '5+0': {
+    label: '5+0',
+    baseMinutes: 5,
+    mode: 'increment',
+    bonusSeconds: 0
+  },
+
+  '10+0': {
+    label: '10+0',
+    baseMinutes: 10,
+    mode: 'increment',
+    bonusSeconds: 0
+  },
+
+  '25d5': {
+    label: '25/5 Delay',
+    baseMinutes: 25,
+    mode: 'delay',
+    bonusSeconds: 5
+  },
+
+  '60d5': {
+    label: 'G/60;d5',
+    baseMinutes: 60,
+    mode: 'delay',
+    bonusSeconds: 5
+  }
+};
+
+let clockEnabled = false;
+let clockPresetKey = '5+0';
+let clockLastSaveTime = 0;
+
+let whiteClockMs =
+  CLOCK_PRESETS['5+0'].baseMinutes *
+  60 *
+  1000;
+
+let blackClockMs =
+  CLOCK_PRESETS['5+0'].baseMinutes *
+  60 *
+  1000;
+
+let clockRunning = false;
+let clockActiveColor = 'white';
+let clockLastTick = null;
+let clockInterval = null;
+let clockDelayRemainingMs = 0;
+let clockFlaggedColor = null;
+
 function initializeChessEngine() {
   if (chessEngine) return;
 
@@ -973,6 +1252,9 @@ function executeChessMove(
   if (!piece) return false;
   if (piece.color !== currentPlayer) return false;
 
+const movingColor =
+  currentPlayer;
+
   const validMoves = getLegalMoves(fromRow, fromCol, piece);
 
   const legalMove = validMoves.find(move => {
@@ -1139,14 +1421,18 @@ function executeChessMove(
   moveHistory.push(move);
 
   currentPlayer =
-    currentPlayer === 'white'
-      ? 'black'
-      : 'white';
+  currentPlayer === 'white'
+    ? 'black'
+    : 'white';
 
-  selectedSquare = null;
-  legalMoves = [];
+selectedSquare = null;
+legalMoves = [];
 
-  checkForWin();
+handleClockAfterMove(
+  movingColor
+);
+
+checkForWin();
   saveGame();
   drawBoard();
   updateStatusBar();
@@ -1274,6 +1560,7 @@ function setupBackgammonBoard() {
 
 function hardResetForCurrentGame() {
     stopPGNPlayback();
+    pauseChessClock();
 
   pgnPlaybackMoves = [];
   pgnPlaybackMoveIndex = 0;
@@ -1311,6 +1598,12 @@ function hardResetForCurrentGame() {
     );
     chessEngine.postMessage('isready');
   }
+
+if (currentGame === 'chess') {
+  resetChessClock();
+} else {
+  updateClockDisplay();
+}
 
   drawBoard();
   updateStatusBar();
@@ -1687,6 +1980,7 @@ function maybeStartComputerTurn() {
   if (!computerEnabled) return;
   if (currentGame !== 'chess') return;
   if (gameResult !== '*') return;
+  if (clockFlaggedColor) return;
   if (currentPlayer !== computerColor) return;
   if (!engineReady || !chessEngine) return;
   if (engineThinking) return;
@@ -2737,6 +3031,7 @@ async function loadImportedPGNGame(
   index
 ) {
   stopPGNPlayback();
+  pauseChessClock();
 
   const game =
     importedPGNGames[index];
@@ -2821,6 +3116,8 @@ async function loadImportedPGNGame(
 }
 
 async function togglePGNPlayback() {
+  pauseChessClock();
+  
   if (
     !pgnPlaybackMoves.length &&
     selectedPGNGameIndex >= 0
@@ -2882,6 +3179,7 @@ function stopPGNPlayback() {
 }
 
 function restartPGNPlayback() {
+  pauseChessClock();
   stopPGNPlayback();
 
   if (!pgnPlaybackMoves.length) {
@@ -3253,6 +3551,620 @@ function restoreImportedPGNPlaylist() {
   }
 }
 
+function getCurrentClockPreset() {
+  return (
+    CLOCK_PRESETS[clockPresetKey] ||
+    CLOCK_PRESETS['5+0']
+  );
+}
+
+function getClockTimeForColor(color) {
+  return color === 'white'
+    ? whiteClockMs
+    : blackClockMs;
+}
+
+function setClockTimeForColor(
+  color,
+  milliseconds
+) {
+  const safeValue = Math.max(
+    0,
+    milliseconds
+  );
+
+  if (color === 'white') {
+    whiteClockMs = safeValue;
+  } else {
+    blackClockMs = safeValue;
+  }
+}
+
+function formatChessClock(milliseconds) {
+  const safeMilliseconds =
+    Math.max(0, milliseconds);
+
+  const totalSeconds =
+    Math.ceil(
+      safeMilliseconds / 1000
+    );
+
+  const minutes =
+    Math.floor(totalSeconds / 60);
+
+  const seconds =
+    totalSeconds % 60;
+
+  return (
+    String(minutes).padStart(2, '0') +
+    ':' +
+    String(seconds).padStart(2, '0')
+  );
+}
+
+function updateClockDisplay() {
+  const clockElement =
+    document.getElementById(
+      'chessClock'
+    );
+
+  const whiteTime =
+    document.getElementById(
+      'whiteClockTime'
+    );
+
+  const blackTime =
+    document.getElementById(
+      'blackClockTime'
+    );
+
+  const whitePanel =
+    document.getElementById(
+      'whiteClockPanel'
+    );
+
+  const blackPanel =
+    document.getElementById(
+      'blackClockPanel'
+    );
+
+  const whiteDelay =
+    document.getElementById(
+      'whiteClockDelay'
+    );
+
+  const blackDelay =
+    document.getElementById(
+      'blackClockDelay'
+    );
+
+  const status =
+    document.getElementById(
+      'clockStatus'
+    );
+
+  if (
+    !clockElement ||
+    !whiteTime ||
+    !blackTime ||
+    !whitePanel ||
+    !blackPanel ||
+    !whiteDelay ||
+    !blackDelay
+  ) {
+    return;
+  }
+
+  clockElement.style.display =
+    clockEnabled &&
+    currentGame === 'chess'
+      ? 'grid'
+      : 'none';
+
+  whiteTime.textContent =
+    formatChessClock(
+      whiteClockMs
+    );
+
+  blackTime.textContent =
+    formatChessClock(
+      blackClockMs
+    );
+
+  whitePanel.classList.toggle(
+    'active',
+    clockRunning &&
+      clockActiveColor === 'white'
+  );
+
+  blackPanel.classList.toggle(
+    'active',
+    clockRunning &&
+      clockActiveColor === 'black'
+  );
+
+  whitePanel.classList.toggle(
+    'flagged',
+    clockFlaggedColor === 'white'
+  );
+
+  blackPanel.classList.toggle(
+    'flagged',
+    clockFlaggedColor === 'black'
+  );
+
+  whiteDelay.textContent = '';
+  blackDelay.textContent = '';
+
+  const preset =
+    getCurrentClockPreset();
+
+  if (
+    clockRunning &&
+    preset.mode === 'delay' &&
+    clockDelayRemainingMs > 0
+  ) {
+    const delayText =
+      `Delay: ${(
+        clockDelayRemainingMs /
+        1000
+      ).toFixed(1)}s`;
+
+    if (
+      clockActiveColor === 'white'
+    ) {
+      whiteDelay.textContent =
+        delayText;
+    } else {
+      blackDelay.textContent =
+        delayText;
+    }
+  }
+
+  if (status) {
+    if (!clockEnabled) {
+      status.textContent =
+        'Clock disabled';
+    } else if (
+      clockFlaggedColor
+    ) {
+      const loser =
+        clockFlaggedColor === 'white'
+          ? 'White'
+          : 'Black';
+
+      status.textContent =
+        `${loser} lost on time`;
+    } else if (clockRunning) {
+      const activeName =
+        clockActiveColor === 'white'
+          ? 'White'
+          : 'Black';
+
+      status.textContent =
+        `${preset.label} • ${activeName}'s clock running`;
+    } else {
+      status.textContent =
+        `${preset.label} • Paused`;
+    }
+  }
+
+  const startButton =
+    document.getElementById(
+      'clockStartButton'
+    );
+
+  const pauseButton =
+    document.getElementById(
+      'clockPauseButton'
+    );
+
+  if (startButton) {
+    startButton.disabled =
+      !clockEnabled ||
+      currentGame !== 'chess' ||
+      Boolean(clockFlaggedColor) ||
+      clockRunning;
+  }
+
+  if (pauseButton) {
+    pauseButton.disabled =
+      !clockRunning;
+  }
+}
+
+function resetClockDelay() {
+  const preset =
+    getCurrentClockPreset();
+
+  clockDelayRemainingMs =
+    preset.mode === 'delay'
+      ? preset.bonusSeconds * 1000
+      : 0;
+}
+
+function resetChessClock(
+  preserveEnabled = true
+) {
+  pauseChessClock();
+
+  const preset =
+    getCurrentClockPreset();
+
+  const startingTime =
+    preset.baseMinutes *
+    60 *
+    1000;
+
+  whiteClockMs =
+    startingTime;
+
+  blackClockMs =
+    startingTime;
+
+  clockActiveColor =
+    currentPlayer === 'black'
+      ? 'black'
+      : 'white';
+
+  clockFlaggedColor = null;
+  clockLastTick = null;
+
+  resetClockDelay();
+
+  if (!preserveEnabled) {
+    clockEnabled = false;
+  }
+
+  saveClockSettings();
+  updateClockDisplay();
+}
+
+function startChessClock() {
+  if (!clockEnabled) return;
+  if (currentGame !== 'chess') return;
+  if (gameResult !== '*') return;
+  if (clockFlaggedColor) return;
+  if (clockRunning) return;
+  if (!pgnPlaybackPaused) return;
+
+  clockActiveColor =
+    currentPlayer;
+
+  clockRunning = true;
+  clockLastTick =
+    performance.now();
+
+  if (clockInterval) {
+    clearInterval(
+      clockInterval
+    );
+  }
+
+  clockInterval =
+    setInterval(
+      tickChessClock,
+      100
+    );
+
+  updateClockDisplay();
+  saveClockSettings();
+}
+
+function pauseChessClock() {
+  if (
+    clockRunning &&
+    clockLastTick !== null
+  ) {
+    tickChessClock();
+  }
+
+  clockRunning = false;
+  clockLastTick = null;
+
+  if (clockInterval) {
+    clearInterval(
+      clockInterval
+    );
+
+    clockInterval = null;
+  }
+
+  updateClockDisplay();
+  saveClockSettings();
+}
+
+function tickChessClock() {
+  if (!clockRunning) {
+    return;
+  }
+
+  const now =
+    performance.now();
+
+  if (clockLastTick === null) {
+    clockLastTick = now;
+    return;
+  }
+
+  let elapsed =
+    now - clockLastTick;
+
+  clockLastTick = now;
+
+  const preset =
+    getCurrentClockPreset();
+
+  if (
+    preset.mode === 'delay' &&
+    clockDelayRemainingMs > 0
+  ) {
+    const delayUsed =
+      Math.min(
+        elapsed,
+        clockDelayRemainingMs
+      );
+
+    clockDelayRemainingMs -=
+      delayUsed;
+
+    elapsed -= delayUsed;
+  }
+
+  if (elapsed > 0) {
+    const remaining =
+      getClockTimeForColor(
+        clockActiveColor
+      );
+
+    setClockTimeForColor(
+      clockActiveColor,
+      remaining - elapsed
+    );
+  }
+
+  if (
+    getClockTimeForColor(
+      clockActiveColor
+    ) <= 0
+  ) {
+    handleClockFlag(
+      clockActiveColor
+    );
+
+    return;
+  }
+
+if (
+  now - clockLastSaveTime >= 1000
+) {
+  clockLastSaveTime = now;
+  saveClockSettings();
+}
+
+  updateClockDisplay();
+}
+
+function handleClockAfterMove(
+  movingColor
+) {
+  if (!clockEnabled) return;
+  if (!clockRunning) return;
+  if (importingPGN) return;
+  if (!pgnPlaybackPaused) return;
+  if (clockFlaggedColor) return;
+
+  tickChessClock();
+
+  if (clockFlaggedColor) {
+    return;
+  }
+
+  const preset =
+    getCurrentClockPreset();
+
+  if (
+    preset.mode === 'increment' &&
+    preset.bonusSeconds > 0
+  ) {
+    const currentTime =
+      getClockTimeForColor(
+        movingColor
+      );
+
+    setClockTimeForColor(
+      movingColor,
+      currentTime +
+        preset.bonusSeconds *
+          1000
+    );
+  }
+
+  clockActiveColor =
+    movingColor === 'white'
+      ? 'black'
+      : 'white';
+
+  resetClockDelay();
+
+  clockLastTick =
+    performance.now();
+
+  updateClockDisplay();
+  saveClockSettings();
+}
+
+function handleClockFlag(
+  losingColor
+) {
+  setClockTimeForColor(
+    losingColor,
+    0
+  );
+
+  clockFlaggedColor =
+    losingColor;
+
+  clockRunning = false;
+  clockLastTick = null;
+
+  if (clockInterval) {
+    clearInterval(
+      clockInterval
+    );
+
+    clockInterval = null;
+  }
+
+  gameResult =
+    losingColor === 'white'
+      ? '0-1'
+      : '1-0';
+
+  saveGame();
+  saveClockSettings();
+
+  drawBoard();
+  updateStatusBar();
+  updateClockDisplay();
+
+  const loserName =
+    losingColor === 'white'
+      ? 'White'
+      : 'Black';
+
+  const winnerName =
+    losingColor === 'white'
+      ? 'Black'
+      : 'White';
+
+  setTimeout(() => {
+    alert(
+      `${loserName} ran out of time. ${winnerName} wins! ⏰`
+    );
+  }, 50);
+}
+
+function saveClockSettings() {
+  localStorage.setItem(
+    'khonsChessClock',
+    JSON.stringify({
+      enabled: clockEnabled,
+      presetKey: clockPresetKey,
+      whiteClockMs,
+      blackClockMs,
+      activeColor:
+        clockActiveColor,
+      delayRemainingMs:
+        clockDelayRemainingMs,
+      flaggedColor:
+        clockFlaggedColor
+    })
+  );
+}
+
+function loadClockSettings() {
+  try {
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          'khonsChessClock'
+        ) || '{}'
+      );
+
+    clockEnabled =
+      Boolean(saved.enabled);
+
+    clockPresetKey =
+      CLOCK_PRESETS[
+        saved.presetKey
+      ]
+        ? saved.presetKey
+        : '5+0';
+
+    const preset =
+      getCurrentClockPreset();
+
+    const defaultTime =
+      preset.baseMinutes *
+      60 *
+      1000;
+
+    whiteClockMs =
+      Number.isFinite(
+        saved.whiteClockMs
+      )
+        ? saved.whiteClockMs
+        : defaultTime;
+
+    blackClockMs =
+      Number.isFinite(
+        saved.blackClockMs
+      )
+        ? saved.blackClockMs
+        : defaultTime;
+
+    clockActiveColor =
+      saved.activeColor === 'black'
+        ? 'black'
+        : 'white';
+
+    clockDelayRemainingMs =
+      Number.isFinite(
+        saved.delayRemainingMs
+      )
+        ? saved.delayRemainingMs
+        : 0;
+
+    clockFlaggedColor =
+      ['white', 'black']
+        .includes(
+          saved.flaggedColor
+        )
+        ? saved.flaggedColor
+        : null;
+
+    /*
+      Never resume automatically after
+      a refresh. Restore as paused.
+    */
+    clockRunning = false;
+    clockLastTick = null;
+
+    const enabledInput =
+      document.getElementById(
+        'clockEnabled'
+      );
+
+    const presetSelect =
+      document.getElementById(
+        'clockPreset'
+      );
+
+    if (enabledInput) {
+      enabledInput.checked =
+        clockEnabled;
+    }
+
+    if (presetSelect) {
+      presetSelect.value =
+        clockPresetKey;
+    }
+
+    updateClockDisplay();
+  } catch (error) {
+    console.warn(
+      'Could not restore chess clock:',
+      error
+    );
+
+    clockEnabled = false;
+    clockPresetKey = '5+0';
+
+    resetChessClock();
+  }
+}
+
 function changeTheme(theme) {
   currentTheme = theme;
   setURLParam('theme', theme);
@@ -3305,6 +4217,7 @@ function checkForWin() {
           winner === 'white'
             ? '1-0'
             : '0-1';
+			pauseChessClock();
 
         if (pgnMoves.length > 0) {
           const lastMove =
@@ -3346,7 +4259,8 @@ function checkForWin() {
         }
       } else {
         gameResult = '1/2-1/2';
-
+		
+		pauseChessClock();
         saveGame();
         updateStatusBar();
 
@@ -3386,6 +4300,7 @@ function checkForWin() {
 ) {
   gameResult = '1/2-1/2';
 
+  pauseChessClock();
   saveGame();
   updateStatusBar();
 
@@ -3455,6 +4370,7 @@ function checkForWin() {
 
 function showGameOver(winner) {
   gameResult = winner === 'white' ? "1-0" : "0-1";
+  pauseChessClock();
   saveGame();
   updateStatusBar();
   setTimeout(() => {
@@ -3699,9 +4615,94 @@ function highlightAvailableDestinations(fromIndex) {
   });
 }
 
+const clockEnabledInput =
+  document.getElementById(
+    'clockEnabled'
+  );
+
+const clockPresetSelect =
+  document.getElementById(
+    'clockPreset'
+  );
+
+const clockStartButton =
+  document.getElementById(
+    'clockStartButton'
+  );
+
+const clockPauseButton =
+  document.getElementById(
+    'clockPauseButton'
+  );
+
+const clockResetButton =
+  document.getElementById(
+    'clockResetButton'
+  );
+
+clockEnabledInput.addEventListener(
+  'change',
+  event => {
+    clockEnabled =
+      event.target.checked;
+
+    if (!clockEnabled) {
+      pauseChessClock();
+    }
+
+    saveClockSettings();
+    updateClockDisplay();
+  }
+);
+
+clockPresetSelect.addEventListener(
+  'change',
+  event => {
+    const requestedPreset =
+      event.target.value;
+
+    if (
+      !CLOCK_PRESETS[
+        requestedPreset
+      ]
+    ) {
+      return;
+    }
+
+    clockPresetKey =
+      requestedPreset;
+
+    resetChessClock();
+  }
+);
+
+clockStartButton.addEventListener(
+  'click',
+  startChessClock
+);
+
+clockPauseButton.addEventListener(
+  'click',
+  pauseChessClock
+);
+
+clockResetButton.addEventListener(
+  'click',
+  () => {
+    if (
+      confirm(
+        'Reset both chess clocks to the selected time control?'
+      )
+    ) {
+      resetChessClock();
+    }
+  }
+);
+
 // Game select handling
 document.getElementById('gameSelect').addEventListener('change', (e) => {
   stopPGNPlayback();
+  pauseChessClock();
 
   const newGame = e.target.value;
   if (newGame === currentGame) return;
@@ -3717,6 +4718,8 @@ document.getElementById('gameSelect').addEventListener('change', (e) => {
     } else {
       hardResetForCurrentGame();
     }
+    
+    updateClockDisplay();
   } else {
     e.target.value = currentGame;
   }
@@ -3734,13 +4737,15 @@ applyThemeFromURL();
 setURLParam('game', currentGame);
 setURLParam('theme', currentTheme);
 
+loadClockSettings();
 loadGame();
 loadComputerSettings();
 restoreImportedPGNPlaylist();
+updateClockDisplay();
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 2.9.0 (PGN Playlist and Playback)
+  Version 3.0.0 (Chess Clock: Increment and Delay)
 </div>
 
 </body>
