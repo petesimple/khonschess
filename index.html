@@ -389,6 +389,39 @@ body {
   text-align: center;
 }
 
+.game-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.game-action-row button {
+  min-height: 38px;
+  padding: 7px 12px;
+  font-family: monospace;
+  font-size: 0.95em;
+  border-radius: 6px;
+}
+
+.resign-button {
+  background: #700;
+  color: #fff;
+  border: 1px solid #f44;
+}
+
+.draw-button {
+  background: #3d3d00;
+  color: #fff;
+  border: 1px solid #ff0;
+}
+
+.game-action-row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 </style>
 </head>
 
@@ -656,6 +689,24 @@ body {
             </option>
           </select>
         </div>
+        <div class="game-action-row">
+  <button
+    id="resignButton"
+    type="button"
+    class="resign-button"
+  >
+    🏳️ Resign
+  </button>
+
+  <button
+    id="offerDrawButton"
+    type="button"
+    class="draw-button"
+  >
+    🤝 Offer Draw
+  </button>
+</div>
+        
       </div>
 
 <div
@@ -979,6 +1030,9 @@ let chessEngine = null;
 let engineReady = false;
 let engineThinking = false;
 
+let pendingComputerMoveTimer = null;
+let pendingComputerMove = null;
+
 let computerEnabled = false;
 let computerColor = 'black';
 let computerLevel = 6;
@@ -1092,33 +1146,86 @@ function initializeChessEngine() {
       }
 
       if (line.startsWith('bestmove')) {
-  const parts = line.split(/\s+/);
-  const move = parts[1];
+  const parts =
+    line.split(/\s+/);
 
-  const shouldApplyMove =
+  const move =
+    parts[1];
+
+  const shouldPrepareMove =
     engineThinking &&
     computerEnabled &&
     currentGame === 'chess' &&
     gameResult === '*' &&
-    currentPlayer === computerColor;
+    currentPlayer === computerColor &&
+    !clockFlaggedColor;
 
   engineThinking = false;
 
-  if (!shouldApplyMove) {
+  if (!shouldPrepareMove) {
     console.log(
       'Ignored outdated Stockfish response:',
       move
     );
+
     return;
   }
 
-  if (!move || move === '(none)' || move === '0000') {
-    status.textContent = 'Computer has no legal move';
+  if (
+    !move ||
+    move === '(none)' ||
+    move === '0000'
+  ) {
+    status.textContent =
+      'Computer has no legal move';
+
     return;
   }
 
-  status.textContent = `Computer chose ${move}`;
-  applyComputerUCIMove(move);
+  pendingComputerMove =
+    move;
+
+  const responseDelay =
+    getComputerResponseDelay();
+
+  status.textContent =
+    getComputerThinkingMessage();
+
+  if (pendingComputerMoveTimer) {
+    clearTimeout(
+      pendingComputerMoveTimer
+    );
+  }
+
+  pendingComputerMoveTimer =
+    setTimeout(() => {
+      pendingComputerMoveTimer = null;
+
+      const moveToApply =
+        pendingComputerMove;
+
+      pendingComputerMove = null;
+
+      const stillValid =
+        computerEnabled &&
+        currentGame === 'chess' &&
+        gameResult === '*' &&
+        currentPlayer === computerColor &&
+        !clockFlaggedColor;
+
+      if (!stillValid) {
+        console.log(
+          'Cancelled delayed computer move:',
+          moveToApply
+        );
+
+        return;
+      }
+
+      applyComputerUCIMove(
+        moveToApply
+      );
+    }, responseDelay);
 }
     };
 
@@ -1561,6 +1668,7 @@ function setupBackgammonBoard() {
 function hardResetForCurrentGame() {
     stopPGNPlayback();
     pauseChessClock();
+    cancelPendingComputerMove();
 
   pgnPlaybackMoves = [];
   pgnPlaybackMoveIndex = 0;
@@ -1693,6 +1801,283 @@ function resetGame() {
   }
 }
 
+function finishChessGame(
+  result,
+  message
+) {
+  if (currentGame !== 'chess') {
+    return;
+  }
+
+  if (gameResult !== '*') {
+    return;
+  }
+
+  gameResult =
+    result;
+
+  pauseChessClock();
+  stopPGNPlayback();
+  cancelPendingComputerMove();
+
+  selectedSquare = null;
+  legalMoves = [];
+
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+  updateGameActionButtons();
+
+  if (message) {
+    setTimeout(() => {
+      alert(message);
+    }, 50);
+  }
+}
+
+function resignCurrentGame() {
+  if (currentGame !== 'chess') {
+    alert(
+      'Resignation is currently available for chess games.'
+    );
+
+    return;
+  }
+
+  if (gameResult !== '*') {
+    return;
+  }
+
+  const resigningColor =
+    currentPlayer;
+
+  const resigningName =
+    resigningColor === 'white'
+      ? 'White'
+      : 'Black';
+
+  const winnerName =
+    resigningColor === 'white'
+      ? 'Black'
+      : 'White';
+
+  const approved =
+    confirm(
+      `${resigningName}, resign the game?\n\n${winnerName} will be declared the winner.`
+    );
+
+  if (!approved) {
+    return;
+  }
+
+  const result =
+    resigningColor === 'white'
+      ? '0-1'
+      : '1-0';
+
+  finishChessGame(
+    result,
+    `${resigningName} resigns. ${winnerName} wins. 🏳️`
+  );
+}
+
+function getMaterialScoreForColor(
+  color
+) {
+  const values = {
+    P: 1,
+    N: 3,
+    B: 3,
+    R: 5,
+    Q: 9,
+    K: 0
+  };
+
+  let score = 0;
+
+  for (
+    let row = 0;
+    row < 8;
+    row++
+  ) {
+    for (
+      let col = 0;
+      col < 8;
+      col++
+    ) {
+      const piece =
+        gameState[row][col];
+
+      if (
+        piece &&
+        piece.color === color
+      ) {
+        score +=
+          values[piece.type] || 0;
+      }
+    }
+  }
+
+  return score;
+}
+
+function computerAcceptsDraw() {
+  const humanColor =
+    computerColor === 'white'
+      ? 'black'
+      : 'white';
+
+  const computerMaterial =
+    getMaterialScoreForColor(
+      computerColor
+    );
+
+  const humanMaterial =
+    getMaterialScoreForColor(
+      humanColor
+    );
+
+  const materialDifference =
+    computerMaterial -
+    humanMaterial;
+
+  /*
+    The computer is more willing to draw
+    when behind and increasingly stubborn
+    at stronger levels.
+  */
+  let acceptanceChance = 0.25;
+
+  if (materialDifference <= -5) {
+    acceptanceChance = 0.85;
+  } else if (
+    materialDifference <= -2
+  ) {
+    acceptanceChance = 0.65;
+  } else if (
+    materialDifference === 0
+  ) {
+    acceptanceChance = 0.3;
+  } else if (
+    materialDifference >= 3
+  ) {
+    acceptanceChance = 0.08;
+  }
+
+  if (computerLevel >= 15) {
+    acceptanceChance *= 0.75;
+  }
+
+  return (
+    Math.random() <
+    acceptanceChance
+  );
+}
+
+function offerDraw() {
+  if (currentGame !== 'chess') {
+    alert(
+      'Draw offers are currently available for chess games.'
+    );
+
+    return;
+  }
+
+  if (gameResult !== '*') {
+    return;
+  }
+
+  pauseChessClock();
+
+  if (computerEnabled) {
+    cancelPendingComputerMove();
+
+    const accepted =
+      computerAcceptsDraw();
+
+    if (accepted) {
+      finishChessGame(
+        '1/2-1/2',
+        'The computer accepts the draw. Nobody has to explain that position ever again. 🤝'
+      );
+
+      return;
+    }
+
+    alert(
+      'The computer declines the draw and would apparently like to continue this nonsense.'
+    );
+
+    if (
+      clockEnabled &&
+      moveHistory.length > 0
+    ) {
+      startChessClock();
+    }
+
+    maybeStartComputerTurn();
+
+    return;
+  }
+
+  const opponentAccepted =
+    confirm(
+      'Draw offered.\n\nDoes the opponent accept the draw?'
+    );
+
+  if (opponentAccepted) {
+    finishChessGame(
+      '1/2-1/2',
+      'Draw agreed. The kings have signed the paperwork. 🤝'
+    );
+
+    return;
+  }
+
+  alert(
+    'Draw declined. Back into the tactical swamp.'
+  );
+
+  if (
+    clockEnabled &&
+    moveHistory.length > 0
+  ) {
+    startChessClock();
+  }
+}
+
+function updateGameActionButtons() {
+  const resignButton =
+    document.getElementById(
+      'resignButton'
+    );
+
+  const drawButton =
+    document.getElementById(
+      'offerDrawButton'
+    );
+
+  const reviewingPGN =
+  selectedPGNGameIndex >= 0 &&
+  pgnPlaybackMoves.length > 0;
+
+const disabled =
+  currentGame !== 'chess' ||
+  gameResult !== '*' ||
+  !pgnPlaybackPaused ||
+  reviewingPGN;
+
+  if (resignButton) {
+    resignButton.disabled =
+      disabled;
+  }
+
+  if (drawButton) {
+    drawButton.disabled =
+      disabled;
+  }
+}
+
 function getSpriteForPiece(piece) {
   return `pieces/${currentTheme}/${piece.color}-${piece.type.toLowerCase()}.png`;
 }
@@ -1726,6 +2111,7 @@ function updateStatusBar() {
     statusBar.textContent = `${currentPlayer === 'white' ? 'White' : 'Black'}'s turn`;
     statusBar.style.color = '#0f0';
   }
+  updateGameActionButtons();
 }
 
 function drawBoard() {
@@ -1984,6 +2370,7 @@ function maybeStartComputerTurn() {
   if (currentPlayer !== computerColor) return;
   if (!engineReady || !chessEngine) return;
   if (engineThinking) return;
+  if (pendingComputerMoveTimer) return;
 
   engineThinking = true;
   selectedSquare = null;
@@ -1992,8 +2379,13 @@ function maybeStartComputerTurn() {
   drawBoard();
   updateStatusBar();
 
-  const status = document.getElementById('engineStatus');
-  status.textContent = 'Computer is thinking...';
+  const status =
+  document.getElementById(
+    'engineStatus'
+  );
+
+status.textContent =
+  getComputerThinkingMessage();
 
   const fen = gameStateToFEN();
 
@@ -2010,6 +2402,82 @@ function getComputerThinkingTime() {
   if (computerLevel <= 15) return 700;
 
   return 1200;
+}
+
+function getComputerResponseDelay() {
+  /*
+    This controls visible pacing after
+    Stockfish has already selected a move.
+  */
+
+  let minimumDelay = 200;
+  let maximumDelay = 500;
+
+  if (computerLevel <= 0) {
+    minimumDelay = 1400;
+    maximumDelay = 2800;
+  } else if (computerLevel <= 3) {
+    minimumDelay = 1000;
+    maximumDelay = 2200;
+  } else if (computerLevel <= 6) {
+    minimumDelay = 700;
+    maximumDelay = 1700;
+  } else if (computerLevel <= 10) {
+    minimumDelay = 450;
+    maximumDelay = 1100;
+  } else if (computerLevel <= 15) {
+    minimumDelay = 250;
+    maximumDelay = 700;
+  } else {
+    minimumDelay = 100;
+    maximumDelay = 350;
+  }
+
+  return Math.round(
+    minimumDelay +
+    Math.random() *
+      (
+        maximumDelay -
+        minimumDelay
+      )
+  );
+}
+
+function getComputerThinkingMessage() {
+  if (computerLevel <= 0) {
+    return 'Sleepy Pigeon is staring at the board...';
+  }
+
+  if (computerLevel <= 3) {
+    return 'Computer is considering its options...';
+  }
+
+  if (computerLevel <= 6) {
+    return 'Computer is thinking...';
+  }
+
+  if (computerLevel <= 10) {
+    return 'Club player is calculating...';
+  }
+
+  if (computerLevel <= 15) {
+    return 'Computer is examining the position...';
+  }
+
+  return 'Khon already knows what you did.';
+}
+
+function cancelPendingComputerMove() {
+  if (pendingComputerMoveTimer) {
+    clearTimeout(
+      pendingComputerMoveTimer
+    );
+
+    pendingComputerMoveTimer = null;
+  }
+
+  pendingComputerMove = null;
+  engineThinking = false;
 }
 
 function applyComputerUCIMove(uciMove) {
@@ -2062,9 +2530,10 @@ computerEnabledInput.addEventListener('change', event => {
     initializeChessEngine();
     maybeStartComputerTurn();
   } else {
-    engineThinking = false;
-    selectedSquare = null;
-    legalMoves = [];
+  cancelPendingComputerMove();
+
+  selectedSquare = null;
+  legalMoves = [];
 
     if (chessEngine) {
       chessEngine.postMessage('stop');
@@ -2080,38 +2549,56 @@ computerEnabledInput.addEventListener('change', event => {
   saveComputerSettings();
 });
 
-computerColorSelect.addEventListener('change', event => {
-  computerColor = event.target.value;
+computerColorSelect.addEventListener(
+  'change',
+  event => {
+    cancelPendingComputerMove();
 
-  selectedSquare = null;
-  legalMoves = [];
+    computerColor =
+      event.target.value;
 
-  saveComputerSettings();
-  drawBoard();
-  updateStatusBar();
+    selectedSquare = null;
+    legalMoves = [];
 
-  if (chessEngine) {
-    engineThinking = false;
-    engineReady = false;
+    saveComputerSettings();
+    drawBoard();
+    updateStatusBar();
 
-    chessEngine.postMessage('stop');
-    chessEngine.postMessage('isready');
-  } else if (computerEnabled) {
-    initializeChessEngine();
+    if (chessEngine) {
+      engineReady = false;
+
+      chessEngine.postMessage('stop');
+      chessEngine.postMessage('isready');
+    } else if (computerEnabled) {
+      initializeChessEngine();
+    }
   }
-});
+);
 
-computerLevelSelect.addEventListener('change', event => {
-  computerLevel = Number(event.target.value);
+computerLevelSelect.addEventListener(
+  'change',
+  event => {
+    cancelPendingComputerMove();
 
-  if (chessEngine && engineReady) {
-    chessEngine.postMessage(
-      `setoption name Skill Level value ${computerLevel}`
-    );
+    computerLevel =
+      Number(event.target.value);
+
+    if (chessEngine && engineReady) {
+      chessEngine.postMessage(
+        `setoption name Skill Level value ${computerLevel}`
+      );
+    }
+
+    saveComputerSettings();
+
+    if (
+      computerEnabled &&
+      currentPlayer === computerColor
+    ) {
+      maybeStartComputerTurn();
+    }
   }
-
-  saveComputerSettings();
-});
+);
 
 function saveComputerSettings() {
   localStorage.setItem(
@@ -2771,7 +3258,7 @@ function resetChessStateForImport() {
 }
 
 function stopComputerForPGNImport() {
-  engineThinking = false;
+  cancelPendingComputerMove();
 
   if (chessEngine) {
     chessEngine.postMessage('stop');
@@ -3364,6 +3851,7 @@ function updatePGNPlaybackControls() {
     playButton.textContent =
       '▶️ Replay';
 
+	updateGameActionButtons();
     return;
   }
 
@@ -3371,6 +3859,8 @@ function updatePGNPlaybackControls() {
     pgnPlaybackPaused
       ? '▶️ Play'
       : '⏸️ Pause';
+      
+  updateGameActionButtons();
 }
 
 function updatePGNPlaybackStatus(
@@ -3949,19 +4439,75 @@ function handleClockAfterMove(
   movingColor
 ) {
   if (!clockEnabled) return;
-  if (!clockRunning) return;
   if (importingPGN) return;
   if (!pgnPlaybackPaused) return;
   if (clockFlaggedColor) return;
+  if (gameResult !== '*') return;
+
+  const preset =
+    getCurrentClockPreset();
+
+  /*
+    Automatically begin the clock after
+    White completes the first legal move.
+
+    White's clock does not run before
+    the opening move. Black becomes the
+    first actively timed player.
+  */
+  if (!clockRunning) {
+    if (moveHistory.length !== 1) {
+      return;
+    }
+
+    if (
+      preset.mode === 'increment' &&
+      preset.bonusSeconds > 0
+    ) {
+      setClockTimeForColor(
+        movingColor,
+        getClockTimeForColor(
+          movingColor
+        ) +
+          preset.bonusSeconds *
+            1000
+      );
+    }
+
+    clockActiveColor =
+      movingColor === 'white'
+        ? 'black'
+        : 'white';
+
+    resetClockDelay();
+
+    clockRunning = true;
+    clockLastTick =
+      performance.now();
+
+    if (clockInterval) {
+      clearInterval(
+        clockInterval
+      );
+    }
+
+    clockInterval =
+      setInterval(
+        tickChessClock,
+        100
+      );
+
+    updateClockDisplay();
+    saveClockSettings();
+
+    return;
+  }
 
   tickChessClock();
 
   if (clockFlaggedColor) {
     return;
   }
-
-  const preset =
-    getCurrentClockPreset();
 
   if (
     preset.mode === 'increment' &&
@@ -4699,10 +5245,31 @@ clockResetButton.addEventListener(
   }
 );
 
+const resignButton =
+  document.getElementById(
+    'resignButton'
+  );
+
+const offerDrawButton =
+  document.getElementById(
+    'offerDrawButton'
+  );
+
+resignButton.addEventListener(
+  'click',
+  resignCurrentGame
+);
+
+offerDrawButton.addEventListener(
+  'click',
+  offerDraw
+);
+
 // Game select handling
 document.getElementById('gameSelect').addEventListener('change', (e) => {
   stopPGNPlayback();
   pauseChessClock();
+  cancelPendingComputerMove();
 
   const newGame = e.target.value;
   if (newGame === currentGame) return;
@@ -4742,10 +5309,11 @@ loadGame();
 loadComputerSettings();
 restoreImportedPGNPlaylist();
 updateClockDisplay();
+updateGameActionButtons();
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.0.0 (Chess Clock: Increment and Delay)
+  Version 3.1.0 (Auto Clock, Game Actions and Computer Pacing)
 </div>
 
 </body>
