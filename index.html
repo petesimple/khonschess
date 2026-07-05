@@ -938,14 +938,18 @@ body {
           </label>
 
           <select id="computerColor">
-            <option value="black">
-              Black
-            </option>
+  <option value="black">
+    Black
+  </option>
 
-            <option value="white">
-              White
-            </option>
-          </select>
+  <option value="white">
+    White
+  </option>
+
+  <option value="random">
+    Random
+  </option>
+</select>
 
           <label for="computerLevel">
             Level:
@@ -1034,7 +1038,17 @@ let pendingComputerMoveTimer = null;
 let pendingComputerMove = null;
 
 let computerEnabled = false;
+
+/*
+  computerColorMode stores the user's
+  selection: white, black, or random.
+
+  computerColor stores the actual side
+  assigned for the current game.
+*/
+let computerColorMode = 'black';
 let computerColor = 'black';
+
 let computerLevel = 6;
 
 let importingPGN = false;
@@ -1138,12 +1152,21 @@ function initializeChessEngine() {
       }
 
       if (line === 'readyok') {
-        engineReady = true;
-        status.textContent = 'Computer player ready';
+  engineReady = true;
 
-        maybeStartComputerTurn();
-        return;
-      }
+  const colorName =
+    computerColor === 'white'
+      ? 'White'
+      : 'Black';
+
+  status.textContent =
+    computerColorMode === 'random'
+      ? `Computer ready as ${colorName} • Random assignment`
+      : `Computer ready as ${colorName}`;
+
+  maybeStartComputerTurn();
+  return;
+}
 
       if (line.startsWith('bestmove')) {
   const parts =
@@ -1679,8 +1702,12 @@ function hardResetForCurrentGame() {
   pgnMoves = [];
   importedPGNHeaders = {};
   currentPlayer = 'white';
-  enPassantTarget = null;
-  gameResult = "*";
+enPassantTarget = null;
+gameResult = "*";
+
+if (currentGame === 'chess') {
+  assignComputerColorForNewGame();
+}
   halfMoveClock = 0;
   fullMoveNumber = 1;
   engineThinking = false;
@@ -2362,6 +2389,41 @@ if (currentGame === 'chess') {
 }
 }
 
+function assignComputerColorForNewGame() {
+  if (computerColorMode === 'random') {
+    computerColor =
+      Math.random() < 0.5
+        ? 'white'
+        : 'black';
+  } else {
+    computerColor =
+      computerColorMode;
+  }
+
+  const status =
+    document.getElementById(
+      'engineStatus'
+    );
+
+  if (
+    status &&
+    computerEnabled
+  ) {
+    const colorName =
+      computerColor === 'white'
+        ? 'White'
+        : 'Black';
+
+    if (computerColorMode === 'random') {
+      status.textContent =
+        `Random assignment: Computer is ${colorName}`;
+    } else {
+      status.textContent =
+        `Computer is ${colorName}`;
+    }
+  }
+}
+
 function maybeStartComputerTurn() {
   if (!computerEnabled) return;
   if (currentGame !== 'chess') return;
@@ -2554,8 +2616,10 @@ computerColorSelect.addEventListener(
   event => {
     cancelPendingComputerMove();
 
-    computerColor =
+    computerColorMode =
       event.target.value;
+
+    assignComputerColorForNewGame();
 
     selectedSquare = null;
     legalMoves = [];
@@ -2568,9 +2632,17 @@ computerColorSelect.addEventListener(
       engineReady = false;
 
       chessEngine.postMessage('stop');
+      chessEngine.postMessage('ucinewgame');
       chessEngine.postMessage('isready');
     } else if (computerEnabled) {
       initializeChessEngine();
+    }
+
+    if (
+      computerEnabled &&
+      currentPlayer === computerColor
+    ) {
+      maybeStartComputerTurn();
     }
   }
 );
@@ -2605,6 +2677,7 @@ function saveComputerSettings() {
     'khonsChessComputerSettings',
     JSON.stringify({
       enabled: computerEnabled,
+      colorMode: computerColorMode,
       color: computerColor,
       level: computerLevel
     })
@@ -2619,15 +2692,34 @@ function loadComputerSettings() {
       ) || '{}'
     );
 
-    computerEnabled = Boolean(saved.enabled);
-    computerColor = saved.color || 'black';
-    computerLevel = Number(saved.level ?? 6);
+    computerEnabled =
+  Boolean(saved.enabled);
+
+computerColorMode =
+  ['white', 'black', 'random']
+    .includes(saved.colorMode)
+      ? saved.colorMode
+      : (
+          ['white', 'black']
+            .includes(saved.color)
+              ? saved.color
+              : 'black'
+        );
+
+computerColor =
+  ['white', 'black']
+    .includes(saved.color)
+      ? saved.color
+      : 'black';
+
+computerLevel =
+  Number(saved.level ?? 6);
 
     document.getElementById('computerEnabled')
       .checked = computerEnabled;
 
     document.getElementById('computerColor')
-      .value = computerColor;
+  .value = computerColorMode;
 
     document.getElementById('computerLevel')
       .value = String(computerLevel);
@@ -5313,7 +5405,7 @@ updateGameActionButtons();
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.1.0 (Auto Clock, Game Actions and Computer Pacing)
+  Version 3.1.1 (Random Computer Color Assignment)
 </div>
 
 </body>
