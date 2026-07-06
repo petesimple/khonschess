@@ -1,4 +1,4 @@
-const CACHE_NAME = "khonschess-cache-v2.8.0";
+const CACHE_NAME = "khonschess-cache-v3.1.1";
 
 const FILES_TO_CACHE = [
   "./",
