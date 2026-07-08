@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#111">
-<title>Khon's Chess Piece Set Converter v2</title>
+<title>Khon's Chess Piece Set Converter v2.1</title>
 <style>
 :root{
   --bg:#111;
@@ -130,12 +130,17 @@ button:disabled{opacity:.45;cursor:not-allowed}
   border:1px solid var(--line);
   border-radius:8px;
   background:var(--panel2);
+  cursor:pointer;
 }
 .piece-chip.active{
   border-color:var(--accent);
   box-shadow:0 0 0 1px var(--accent) inset;
 }
 .piece-chip.done{border-color:var(--ok)}
+.piece-chip.selected{
+  border-color:var(--warn);
+  box-shadow:0 0 0 1px var(--warn) inset;
+}
 .mode-note{margin-top:8px;color:var(--warn)}
 @media(max-width:700px){
   body{padding:8px}
@@ -145,10 +150,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <body>
 <div class="app">
   <div class="panel">
-    <h1>Khon's Chess Piece Set Converter v2</h1>
+    <h1>Khon's Chess Piece Set Converter v2.1</h1>
     <p>
       This version handles clean sprite sheets and messy AI-generated character sheets.
       Use Grid mode for tidy 2×6 sheets, or Manual mode to draw one crop box around each piece.
+      After drawing a manual box, click it or its chip and drag the corner handles to square it up.
     </p>
   </div>
 
@@ -179,7 +185,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
       <label>
         Extraction mode
         <select id="extractionMode">
-          <option value="manual" selected>Manual boxes (recommended)</option>
+          <option value="manual" selected>Manual boxes recommended</option>
           <option value="grid">2 × 6 grid</option>
         </select>
       </label>
@@ -240,6 +246,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <p class="small">
       Draw a box around the highlighted piece. Boxes are assigned in Khon's required order.
       The first six are one color and the next six are the other color.
+      Click a completed box or chip to select it, then drag the numbered corner handles.
     </p>
 
     <div id="pieceMap" class="piece-map"></div>
@@ -248,6 +255,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
       <button id="undoBoxButton" class="warn" disabled>Undo last box</button>
       <button id="clearBoxesButton" class="danger" disabled>Clear all boxes</button>
       <button id="autoSortButton" disabled>Sort boxes top-to-bottom</button>
+      <button id="deselectBoxButton" disabled>Deselect box</button>
     </div>
 
     <div id="manualHint" class="mode-note">
@@ -363,6 +371,7 @@ const manualHint = document.getElementById('manualHint');
 const undoBoxButton = document.getElementById('undoBoxButton');
 const clearBoxesButton = document.getElementById('clearBoxesButton');
 const autoSortButton = document.getElementById('autoSortButton');
+const deselectBoxButton = document.getElementById('deselectBoxButton');
 
 let sourceImage = null;
 let sourceScale = 1;
@@ -371,6 +380,13 @@ let manualBoxes = [];
 let dragging = false;
 let dragStart = null;
 let draftBox = null;
+let selectedBoxIndex = -1;
+let cornerDrag = null;
+let sourcePixelCanvas = null;
+let sourcePixelCtx = null;
+let cachedSourceImageData = null;
+
+const CORNER_HANDLE_RADIUS = 9;
 
 function getActualPieceOrder() {
   const topColor = document.getElementById('topColor').value;
@@ -402,20 +418,25 @@ function updatePieceMap() {
 
   chips.forEach((chip, index) => {
     chip.classList.toggle('done', index < manualBoxes.length);
-    chip.classList.toggle('active', index === manualBoxes.length && manualBoxes.length < 12);
+    chip.classList.toggle('selected', index === selectedBoxIndex);
+    chip.classList.toggle('active', index === manualBoxes.length && manualBoxes.length < 12 && selectedBoxIndex === -1);
   });
 
   undoBoxButton.disabled = manualBoxes.length === 0;
   clearBoxesButton.disabled = manualBoxes.length === 0;
   autoSortButton.disabled = manualBoxes.length < 2;
+  deselectBoxButton.disabled = selectedBoxIndex === -1;
 
   if (!sourceImage) {
     manualHint.textContent = 'Load an image, then drag around the first highlighted piece.';
+  } else if (selectedBoxIndex >= 0 && manualBoxes[selectedBoxIndex]) {
+    const piece = getActualPieceOrder()[selectedBoxIndex];
+    manualHint.textContent = `Adjusting ${piece.key}.png. Drag the corner handles to square it up.`;
   } else if (manualBoxes.length < 12) {
     const piece = getActualPieceOrder()[manualBoxes.length];
     manualHint.textContent = `Draw box ${manualBoxes.length + 1} of 12 around ${piece.key}.png (${piece.role}).`;
   } else {
-    manualHint.textContent = 'All 12 boxes are assigned. Generate a preview or adjust with Undo.';
+    manualHint.textContent = 'All 12 boxes are assigned. Click a box or chip to adjust its corners.';
   }
 
   updatePreviewAvailability();
@@ -454,6 +475,115 @@ function fitSourceCanvas() {
   sourceScale = Math.min(1, maxWidth / sourceImage.naturalWidth);
   sourceCanvas.width = Math.max(1, Math.round(sourceImage.naturalWidth * sourceScale));
   sourceCanvas.height = Math.max(1, Math.round(sourceImage.naturalHeight * sourceScale));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function distance(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function canvasPointToSource(point) {
+  return {
+    x: clamp(Math.round(point.x / sourceScale), 0, sourceImage.naturalWidth - 1),
+    y: clamp(Math.round(point.y / sourceScale), 0, sourceImage.naturalHeight - 1)
+  };
+}
+
+function makeBoxFromDraft(draft) {
+  const x = Math.round(draft.x / sourceScale);
+  const y = Math.round(draft.y / sourceScale);
+  const width = Math.round(draft.width / sourceScale);
+  const height = Math.round(draft.height / sourceScale);
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    corners: [
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height }
+    ]
+  };
+}
+
+function ensureBoxCorners(box) {
+  if (box.corners && box.corners.length === 4) return;
+
+  box.corners = [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x + box.width, y: box.y + box.height },
+    { x: box.x, y: box.y + box.height }
+  ];
+}
+
+function updateBoxBoundsFromCorners(box) {
+  ensureBoxCorners(box);
+
+  const xs = box.corners.map(corner => corner.x);
+  const ys = box.corners.map(corner => corner.y);
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  box.x = Math.round(minX);
+  box.y = Math.round(minY);
+  box.width = Math.max(1, Math.round(maxX - minX));
+  box.height = Math.max(1, Math.round(maxY - minY));
+}
+
+function getCanvasCorners(box) {
+  ensureBoxCorners(box);
+
+  return box.corners.map(corner => ({
+    x: corner.x * sourceScale,
+    y: corner.y * sourceScale
+  }));
+}
+
+function pointNearCorner(point) {
+  for (let boxIndex = manualBoxes.length - 1; boxIndex >= 0; boxIndex--) {
+    const corners = getCanvasCorners(manualBoxes[boxIndex]);
+
+    for (let cornerIndex = 0; cornerIndex < corners.length; cornerIndex++) {
+      if (distance(point, corners[cornerIndex]) <= CORNER_HANDLE_RADIUS + 5) {
+        return { boxIndex, cornerIndex };
+      }
+    }
+  }
+
+  return null;
+}
+
+function pointInBox(point, box) {
+  const x = box.x * sourceScale;
+  const y = box.y * sourceScale;
+  const w = box.width * sourceScale;
+  const h = box.height * sourceScale;
+
+  return point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h;
+}
+
+function boxAtPoint(point) {
+  for (let index = manualBoxes.length - 1; index >= 0; index--) {
+    if (pointInBox(point, manualBoxes[index])) return index;
+  }
+
+  return -1;
 }
 
 function drawSource() {
@@ -511,17 +641,43 @@ function drawManualOverlay() {
   sourceCtx.font = 'bold 15px monospace';
 
   manualBoxes.forEach((box, index) => {
-    const x = box.x * sourceScale;
-    const y = box.y * sourceScale;
-    const w = box.width * sourceScale;
-    const h = box.height * sourceScale;
+    ensureBoxCorners(box);
 
-    sourceCtx.strokeStyle = '#50e36e';
-    sourceCtx.fillStyle = 'rgba(80,227,110,.10)';
-    sourceCtx.fillRect(x, y, w, h);
-    sourceCtx.strokeRect(x, y, w, h);
+    const corners = getCanvasCorners(box);
+    const isSelected = index === selectedBoxIndex;
+
+    sourceCtx.beginPath();
+    sourceCtx.moveTo(corners[0].x, corners[0].y);
+    sourceCtx.lineTo(corners[1].x, corners[1].y);
+    sourceCtx.lineTo(corners[2].x, corners[2].y);
+    sourceCtx.lineTo(corners[3].x, corners[3].y);
+    sourceCtx.closePath();
+
+    sourceCtx.strokeStyle = isSelected ? '#ffd54a' : '#50e36e';
+    sourceCtx.fillStyle = isSelected ? 'rgba(255,213,74,.13)' : 'rgba(80,227,110,.10)';
+    sourceCtx.fill();
+    sourceCtx.stroke();
+
     sourceCtx.fillStyle = '#fff';
-    sourceCtx.fillText(String(index + 1), x + 6, y + 18);
+    sourceCtx.fillText(String(index + 1), corners[0].x + 6, corners[0].y + 18);
+
+    if (isSelected) {
+      corners.forEach((corner, cornerIndex) => {
+        sourceCtx.beginPath();
+        sourceCtx.arc(corner.x, corner.y, CORNER_HANDLE_RADIUS, 0, Math.PI * 2);
+        sourceCtx.fillStyle = '#00e5ff';
+        sourceCtx.fill();
+        sourceCtx.strokeStyle = '#111';
+        sourceCtx.lineWidth = 2;
+        sourceCtx.stroke();
+
+        sourceCtx.fillStyle = '#111';
+        sourceCtx.font = 'bold 11px monospace';
+        sourceCtx.fillText(String(cornerIndex + 1), corner.x - 3, corner.y + 4);
+        sourceCtx.font = 'bold 15px monospace';
+        sourceCtx.lineWidth = 3;
+      });
+    }
   });
 
   if (draftBox) {
@@ -546,16 +702,56 @@ function pointerToCanvas(event) {
 }
 
 sourceCanvas.addEventListener('pointerdown', event => {
-  if (!sourceImage || extractionMode.value !== 'manual' || manualBoxes.length >= 12) return;
+  if (!sourceImage || extractionMode.value !== 'manual') return;
 
+  const point = pointerToCanvas(event);
+  const handle = pointNearCorner(point);
+
+  if (handle) {
+    cornerDrag = handle;
+    selectedBoxIndex = handle.boxIndex;
+    sourceCanvas.setPointerCapture(event.pointerId);
+    drawSource();
+    updatePieceMap();
+    return;
+  }
+
+  const clickedBoxIndex = boxAtPoint(point);
+
+  if (clickedBoxIndex >= 0) {
+    selectedBoxIndex = clickedBoxIndex;
+    drawSource();
+    updatePieceMap();
+    return;
+  }
+
+  if (manualBoxes.length >= 12) return;
+
+  selectedBoxIndex = -1;
   dragging = true;
   sourceCanvas.setPointerCapture(event.pointerId);
-  dragStart = pointerToCanvas(event);
+  dragStart = point;
   draftBox = { x: dragStart.x, y: dragStart.y, width: 0, height: 0 };
   drawSource();
+  updatePieceMap();
 });
 
 sourceCanvas.addEventListener('pointermove', event => {
+  if (cornerDrag) {
+    const point = pointerToCanvas(event);
+    const sourcePoint = canvasPointToSource(point);
+    const box = manualBoxes[cornerDrag.boxIndex];
+
+    ensureBoxCorners(box);
+    box.corners[cornerDrag.cornerIndex] = sourcePoint;
+    updateBoxBoundsFromCorners(box);
+
+    invalidateGenerated();
+    drawSource();
+    updatePieceMap();
+    return;
+  }
+
   if (!dragging || !dragStart) return;
 
   const point = pointerToCanvas(event);
@@ -569,17 +765,22 @@ sourceCanvas.addEventListener('pointermove', event => {
 });
 
 sourceCanvas.addEventListener('pointerup', event => {
+  if (cornerDrag) {
+    cornerDrag = null;
+    invalidateGenerated();
+    drawSource();
+    updatePieceMap();
+    return;
+  }
+
   if (!dragging || !draftBox) return;
 
   dragging = false;
 
   if (draftBox.width >= 10 && draftBox.height >= 10) {
-    manualBoxes.push({
-      x: Math.round(draftBox.x / sourceScale),
-      y: Math.round(draftBox.y / sourceScale),
-      width: Math.round(draftBox.width / sourceScale),
-      height: Math.round(draftBox.height / sourceScale)
-    });
+    const newBox = makeBoxFromDraft(draftBox);
+    manualBoxes.push(newBox);
+    selectedBoxIndex = manualBoxes.length - 1;
   }
 
   draftBox = null;
@@ -587,6 +788,15 @@ sourceCanvas.addEventListener('pointerup', event => {
   drawSource();
   updatePieceMap();
   invalidateGenerated();
+});
+
+sourceCanvas.addEventListener('pointercancel', () => {
+  dragging = false;
+  dragStart = null;
+  draftBox = null;
+  cornerDrag = null;
+  drawSource();
+  updatePieceMap();
 });
 
 function getGridCellRect(row, col) {
@@ -666,12 +876,12 @@ function removeBackgroundFromCanvas(canvas) {
     const dr = data[i] - bg.r;
     const dg = data[i + 1] - bg.g;
     const db = data[i + 2] - bg.b;
-    const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+    const distanceValue = Math.sqrt(dr * dr + dg * dg + db * db);
 
-    if (distance <= tolerance) {
+    if (distanceValue <= tolerance) {
       data[i + 3] = 0;
-    } else if (distance <= tolerance * 1.35) {
-      const alphaScale = (distance - tolerance) / (tolerance * 0.35 || 1);
+    } else if (distanceValue <= tolerance * 1.35) {
+      const alphaScale = (distanceValue - tolerance) / (tolerance * 0.35 || 1);
       data[i + 3] = Math.round(data[i + 3] * alphaScale);
     }
   }
@@ -712,17 +922,9 @@ function makePieceCanvas(index) {
   const rect = getPieceRect(index);
   if (!rect) throw new Error(`Missing crop box ${index + 1}.`);
 
-  const cellCanvas = document.createElement('canvas');
-  cellCanvas.width = Math.max(1, rect.width);
-  cellCanvas.height = Math.max(1, rect.height);
-
-  const cellCtx = cellCanvas.getContext('2d', { willReadFrequently: true });
-  cellCtx.imageSmoothingEnabled = false;
-  cellCtx.drawImage(
-    sourceImage,
-    rect.x, rect.y, rect.width, rect.height,
-    0, 0, rect.width, rect.height
-  );
+  const cellCanvas = rect.corners
+    ? makeWarpedCropCanvas(rect)
+    : makeStraightCropCanvas(rect);
 
   removeBackgroundFromCanvas(cellCanvas);
 
@@ -756,6 +958,151 @@ function makePieceCanvas(index) {
   );
 
   return outputCanvas;
+}
+
+function makeStraightCropCanvas(rect) {
+  const cellCanvas = document.createElement('canvas');
+  cellCanvas.width = Math.max(1, rect.width);
+  cellCanvas.height = Math.max(1, rect.height);
+
+  const cellCtx = cellCanvas.getContext('2d', { willReadFrequently: true });
+  cellCtx.imageSmoothingEnabled = false;
+  cellCtx.drawImage(
+    sourceImage,
+    rect.x, rect.y, rect.width, rect.height,
+    0, 0, rect.width, rect.height
+  );
+
+  return cellCanvas;
+}
+
+function makeWarpedCropCanvas(rect) {
+  ensureBoxCorners(rect);
+
+  const ordered = orderCorners(rect.corners);
+  const [tl, tr, br, bl] = ordered;
+
+  const topW = distance(tl, tr);
+  const bottomW = distance(bl, br);
+  const leftH = distance(tl, bl);
+  const rightH = distance(tr, br);
+
+  const width = Math.max(1, Math.round((topW + bottomW) / 2));
+  const height = Math.max(1, Math.round((leftH + rightH) / 2));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const output = ctx.createImageData(width, height);
+  const out = output.data;
+
+  const sourceData = getSourceImageData();
+  const src = sourceData.data;
+  const srcW = sourceData.width;
+  const srcH = sourceData.height;
+
+  for (let y = 0; y < height; y++) {
+    const v = height === 1 ? 0 : y / (height - 1);
+
+    for (let x = 0; x < width; x++) {
+      const u = width === 1 ? 0 : x / (width - 1);
+
+      const topX = lerp(tl.x, tr.x, u);
+      const topY = lerp(tl.y, tr.y, u);
+      const bottomX = lerp(bl.x, br.x, u);
+      const bottomY = lerp(bl.y, br.y, u);
+
+      const sourceX = lerp(topX, bottomX, v);
+      const sourceY = lerp(topY, bottomY, v);
+
+      const rgba = sampleBilinear(src, srcW, srcH, sourceX, sourceY);
+      const i = (y * width + x) * 4;
+
+      out[i] = rgba[0];
+      out[i + 1] = rgba[1];
+      out[i + 2] = rgba[2];
+      out[i + 3] = rgba[3];
+    }
+  }
+
+  ctx.putImageData(output, 0, 0);
+  return canvas;
+}
+
+function orderCorners(corners) {
+  const copy = corners.map(corner => ({ x: corner.x, y: corner.y }));
+  const center = {
+    x: copy.reduce((sum, corner) => sum + corner.x, 0) / copy.length,
+    y: copy.reduce((sum, corner) => sum + corner.y, 0) / copy.length
+  };
+
+  return copy.sort((a, b) => {
+    const angleA = Math.atan2(a.y - center.y, a.x - center.x);
+    const angleB = Math.atan2(b.y - center.y, b.x - center.x);
+    return angleA - angleB;
+  }).reduce((ordered, corner) => {
+    if (corner.x < center.x && corner.y < center.y) ordered[0] = corner;
+    else if (corner.x >= center.x && corner.y < center.y) ordered[1] = corner;
+    else if (corner.x >= center.x && corner.y >= center.y) ordered[2] = corner;
+    else ordered[3] = corner;
+    return ordered;
+  }, []).map((corner, index) => {
+    if (corner) return corner;
+
+    const fallback = copy[index] || copy[0];
+    return { x: fallback.x, y: fallback.y };
+  });
+}
+
+function getSourceImageData() {
+  if (!sourcePixelCanvas || !sourcePixelCtx || !cachedSourceImageData) {
+    sourcePixelCanvas = document.createElement('canvas');
+    sourcePixelCanvas.width = sourceImage.naturalWidth;
+    sourcePixelCanvas.height = sourceImage.naturalHeight;
+    sourcePixelCtx = sourcePixelCanvas.getContext('2d', { willReadFrequently: true });
+    sourcePixelCtx.imageSmoothingEnabled = false;
+    sourcePixelCtx.drawImage(sourceImage, 0, 0);
+    cachedSourceImageData = sourcePixelCtx.getImageData(0, 0, sourcePixelCanvas.width, sourcePixelCanvas.height);
+  }
+
+  return cachedSourceImageData;
+}
+
+function sampleBilinear(data, width, height, x, y) {
+  x = clamp(x, 0, width - 1);
+  y = clamp(y, 0, height - 1);
+
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(width - 1, x0 + 1);
+  const y1 = Math.min(height - 1, y0 + 1);
+
+  const tx = x - x0;
+  const ty = y - y0;
+
+  const c00 = getPixel(data, width, x0, y0);
+  const c10 = getPixel(data, width, x1, y0);
+  const c01 = getPixel(data, width, x0, y1);
+  const c11 = getPixel(data, width, x1, y1);
+
+  return [0, 1, 2, 3].map(channel => {
+    const top = lerp(c00[channel], c10[channel], tx);
+    const bottom = lerp(c01[channel], c11[channel], tx);
+    return Math.round(lerp(top, bottom, ty));
+  });
+}
+
+function getPixel(data, width, x, y) {
+  const i = (y * width + x) * 4;
+
+  return [
+    data[i],
+    data[i + 1],
+    data[i + 2],
+    data[i + 3]
+  ];
 }
 
 function canvasToBlob(canvas) {
@@ -893,11 +1240,16 @@ fileInput.addEventListener('change', event => {
   image.onload = () => {
     sourceImage = image;
     manualBoxes = [];
+    selectedBoxIndex = -1;
+    cornerDrag = null;
+    sourcePixelCanvas = null;
+    sourcePixelCtx = null;
+    cachedSourceImageData = null;
     fitSourceCanvas();
     drawSource();
     buildPieceMap();
     updatePreviewAvailability();
-    status.textContent = `${file.name} loaded. ${extractionMode.value === 'manual' ? 'Draw twelve crop boxes.' : 'Adjust the grid and preview.'}`;
+    status.textContent = `${file.name} loaded. ${extractionMode.value === 'manual' ? 'Draw twelve crop boxes, then adjust corners as needed.' : 'Adjust the grid and preview.'}`;
     URL.revokeObjectURL(url);
   };
 
@@ -912,9 +1264,12 @@ fileInput.addEventListener('change', event => {
 extractionMode.addEventListener('change', () => {
   gridPanel.classList.toggle('hidden', extractionMode.value !== 'grid');
   manualPanel.classList.toggle('hidden', extractionMode.value !== 'manual');
+  selectedBoxIndex = -1;
+  cornerDrag = null;
   invalidateGenerated();
   drawSource();
   updatePreviewAvailability();
+  updatePieceMap();
 });
 
 document.getElementById('topColor').addEventListener('change', () => {
@@ -934,8 +1289,33 @@ document.getElementById('topColor').addEventListener('change', () => {
   });
 });
 
+pieceMap.addEventListener('click', event => {
+  const chip = event.target.closest('.piece-chip');
+  if (!chip) return;
+
+  const index = Number(chip.dataset.index);
+
+  if (index < manualBoxes.length) {
+    selectedBoxIndex = index;
+  } else {
+    selectedBoxIndex = -1;
+  }
+
+  drawSource();
+  updatePieceMap();
+});
+
 undoBoxButton.addEventListener('click', () => {
   manualBoxes.pop();
+
+  if (selectedBoxIndex >= manualBoxes.length) {
+    selectedBoxIndex = manualBoxes.length - 1;
+  }
+
+  if (manualBoxes.length === 0) {
+    selectedBoxIndex = -1;
+  }
+
   invalidateGenerated();
   drawSource();
   updatePieceMap();
@@ -943,12 +1323,16 @@ undoBoxButton.addEventListener('click', () => {
 
 clearBoxesButton.addEventListener('click', () => {
   manualBoxes = [];
+  selectedBoxIndex = -1;
+  cornerDrag = null;
   invalidateGenerated();
   drawSource();
   updatePieceMap();
 });
 
 autoSortButton.addEventListener('click', () => {
+  manualBoxes.forEach(ensureBoxCorners);
+
   manualBoxes.sort((a, b) => {
     const rowDelta = a.y - b.y;
     const averageHeight = (a.height + b.height) / 2;
@@ -960,7 +1344,15 @@ autoSortButton.addEventListener('click', () => {
     return a.x - b.x;
   });
 
+  selectedBoxIndex = -1;
   invalidateGenerated();
+  drawSource();
+  updatePieceMap();
+});
+
+deselectBoxButton.addEventListener('click', () => {
+  selectedBoxIndex = -1;
+  cornerDrag = null;
   drawSource();
   updatePieceMap();
 });
