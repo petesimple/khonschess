@@ -945,6 +945,7 @@ body {
             <input
               type="checkbox"
               id="computerEnabled"
+              checked
             >
             Play against computer
           </label>
@@ -1053,7 +1054,7 @@ let engineThinking = false;
 let pendingComputerMoveTimer = null;
 let pendingComputerMove = null;
 
-let computerEnabled = false;
+let computerEnabled = true;
 
 /*
   computerColorMode stores the user's
@@ -2709,7 +2710,9 @@ function loadComputerSettings() {
     );
 
     computerEnabled =
-  Boolean(saved.enabled);
+  saved.enabled === undefined
+    ? true
+    : Boolean(saved.enabled);
 
 computerColorMode =
   ['white', 'black', 'random']
