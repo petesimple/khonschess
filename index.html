@@ -1080,6 +1080,8 @@ let pgnPlaybackTimer = null;
 let pgnPlaybackDelay = 1000;
 let pgnPlaybackPaused = true;
 
+let gameEndReason = '';
+
 const CLOCK_PRESETS = {
   '3+2': {
     label: '3+2 Increment',
@@ -1719,8 +1721,9 @@ function hardResetForCurrentGame() {
   pgnMoves = [];
   importedPGNHeaders = {};
   currentPlayer = 'white';
-enPassantTarget = null;
-gameResult = "*";
+  enPassantTarget = null;
+  gameResult = "*";
+  gameEndReason = '';
 
 if (currentGame === 'chess') {
   assignComputerColorForNewGame();
@@ -1795,6 +1798,7 @@ function saveGame() {
     borneOff,
     diceRoll,
     diceUsed,
+    gameEndReason,
     selectedPoint
   };
   localStorage.setItem(getSaveKey(), JSON.stringify(saveData));
@@ -1816,6 +1820,7 @@ function loadGame() {
     gameResult = data.gameResult || "*";
     halfMoveClock = data.halfMoveClock || 0;
     fullMoveNumber = data.fullMoveNumber || 1;
+    gameEndReason = data.gameEndReason || '';
     
 
     // Restore theme
@@ -2040,6 +2045,9 @@ function offerDraw() {
       computerAcceptsDraw();
 
     if (accepted) {
+    
+      gameEndReason = 'agreement';
+    
       finishChessGame(
         '1/2-1/2',
         'The computer accepts the draw. Nobody has to explain that position ever again. 🤝'
@@ -2070,13 +2078,15 @@ function offerDraw() {
     );
 
   if (opponentAccepted) {
-    finishChessGame(
-      '1/2-1/2',
-      'Draw agreed. The kings have signed the paperwork. 🤝'
-    );
+  gameEndReason = 'agreement';
 
-    return;
-  }
+  finishChessGame(
+    '1/2-1/2',
+    'Draw agreed. The kings have signed the paperwork. 🤝'
+  );
+
+  return;
+}
 
   alert(
     'Draw declined. Back into the tactical swamp.'
@@ -2105,11 +2115,16 @@ function updateGameActionButtons() {
   selectedPGNGameIndex >= 0 &&
   pgnPlaybackMoves.length > 0;
 
+  const computerTurn =
+  computerEnabled &&
+  currentPlayer === computerColor;
+
 const disabled =
   currentGame !== 'chess' ||
   gameResult !== '*' ||
   !pgnPlaybackPaused ||
-  reviewingPGN;
+  reviewingPGN ||
+  computerTurn;
 
   if (resignButton) {
     resignButton.disabled =
@@ -2139,9 +2154,21 @@ function updateStatusBar() {
         statusBar.textContent = "Black wins! ♚";
         statusBar.style.color = "#fff";
       } else {
-        statusBar.textContent = "Draw - " + gameResult;
-        statusBar.style.color = "#ff0";
-      }
+  const drawLabels = {
+    stalemate: 'Draw by stalemate',
+    agreement: 'Draw by agreement',
+    '50 move rule': 'Draw by 50 move rule',
+    repetition: 'Draw by repetition',
+    'insufficient material':
+      'Draw by insufficient material'
+  };
+
+  statusBar.textContent =
+    drawLabels[gameEndReason] ||
+    'Game drawn';
+
+  statusBar.style.color = '#ff0';
+}
     } else {
       const inCheck = isInCheck(currentPlayer);
       const turn = currentPlayer === 'white' ? 'White' : 'Black';
@@ -2290,6 +2317,47 @@ function drawBoard() {
   }
 }
 
+function choosePawnPromotion(piece, destinationRow) {
+  const isPromotion =
+    piece &&
+    piece.type === 'P' &&
+    (
+      destinationRow === 0 ||
+      destinationRow === 7
+    );
+
+  if (!isPromotion) {
+    return null;
+  }
+
+  while (true) {
+    const response = prompt(
+      'Promote pawn to:\n\nQ = Queen\nR = Rook\nB = Bishop\nN = Knight\n\nEnter Q, R, B, or N:',
+      'Q'
+    );
+
+    if (response === null) {
+      return false;
+    }
+
+    const choice =
+      response
+        .trim()
+        .toUpperCase();
+
+    if (
+      ['Q', 'R', 'B', 'N']
+        .includes(choice)
+    ) {
+      return choice;
+    }
+
+    alert(
+      'Please enter Q, R, B, or N.'
+    );
+  }
+}
+
 function handleSquareClick(e) {
     if (
     currentGame === 'chess' &&
@@ -2357,16 +2425,44 @@ if (currentGame === 'chess') {
     });
 
     if (moveIsLegal) {
-      executeChessMove(
-        selectedSquare.row,
-        selectedSquare.col,
-        row,
-        col
-      );
+  const fromRow =
+    selectedSquare.row;
 
-      maybeStartComputerTurn();
-      return;
-    }
+  const fromCol =
+    selectedSquare.col;
+
+  const movingPiece =
+    gameState[fromRow][fromCol];
+
+  const promotionChoice =
+    choosePawnPromotion(
+      movingPiece,
+      row
+    );
+
+  /*
+    false means the player cancelled
+    the promotion dialog.
+  */
+  if (promotionChoice === false) {
+    return;
+  }
+
+  const moved =
+    executeChessMove(
+      fromRow,
+      fromCol,
+      row,
+      col,
+      promotionChoice || 'Q'
+    );
+
+  if (moved) {
+    maybeStartComputerTurn();
+  }
+
+  return;
+}
 
     if (
       clickedPiece &&
@@ -3351,6 +3447,7 @@ function resetChessStateForImport() {
   enPassantTarget = null;
 
   gameResult = '*';
+  gameEndReason = '';
   halfMoveClock = 0;
   fullMoveNumber = 1;
 
@@ -4916,6 +5013,7 @@ function checkForWin() {
         }
       } else {
         gameResult = '1/2-1/2';
+		gameEndReason = 'stalemate';
 		
 		pauseChessClock();
         saveGame();
@@ -4955,6 +5053,7 @@ function checkForWin() {
   halfMoveClock >= 100 &&
   !importingPGN
 ) {
+  gameEndReason = '50 move rule';
   gameResult = '1/2-1/2';
 
   pauseChessClock();
