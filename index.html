@@ -422,6 +422,19 @@ body {
   cursor: not-allowed;
 }
 
+.player-side-indicator {
+  display: none;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #1d1d1d;
+  color: #0ff;
+  border: 1px solid #0ff;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-align: center;
+}
+
 </style>
 </head>
 
@@ -1002,6 +1015,14 @@ body {
           </select>
 
         </div>
+
+		<div
+
+          id="playerSideIndicator"
+
+          class="player-side-indicator"
+
+        ></div>
 
         <div
           id="engineStatus"
@@ -1760,6 +1781,7 @@ if (currentGame === 'chess') {
   updateClockDisplay();
 }
 
+  updatePlayerSideIndicator();
   drawBoard();
   updateStatusBar();
   saveGame();
@@ -1793,6 +1815,9 @@ function saveGame() {
     halfMoveClock,
     fullMoveNumber,
     importedPGNHeaders,
+    computerColorMode,
+	computerColor,
+	
     // backgammon extras
     bar,
     borneOff,
@@ -1822,6 +1847,35 @@ function loadGame() {
     fullMoveNumber = data.fullMoveNumber || 1;
     gameEndReason = data.gameEndReason || '';
     
+    if (
+  ['white', 'black', 'random']
+    .includes(
+      data.computerColorMode
+    )
+) {
+  computerColorMode =
+    data.computerColorMode;
+}
+
+if (
+  ['white', 'black']
+    .includes(
+      data.computerColor
+    )
+) {
+  computerColor =
+    data.computerColor;
+}
+
+const computerColorSelect =
+  document.getElementById(
+    'computerColor'
+  );
+
+if (computerColorSelect) {
+  computerColorSelect.value =
+    computerColorMode;
+}
 
     // Restore theme
     if (data.currentTheme) {
@@ -1839,6 +1893,7 @@ function loadGame() {
     hardResetForCurrentGame();
     return;
   }
+  updatePlayerSideIndicator();
   drawBoard();
   updateStatusBar();
 }
@@ -2502,8 +2557,57 @@ if (currentGame === 'chess') {
 }
 }
 
+function updatePlayerSideIndicator() {
+  const indicator =
+    document.getElementById(
+      'playerSideIndicator'
+    );
+
+  if (!indicator) {
+    return;
+  }
+
+  if (
+    currentGame !== 'chess' ||
+    !computerEnabled
+  ) {
+    indicator.style.display =
+      'none';
+
+    indicator.textContent =
+      '';
+
+    return;
+  }
+
+  const humanColor =
+    computerColor === 'white'
+      ? 'Black'
+      : 'White';
+
+  const computerColorName =
+    computerColor === 'white'
+      ? 'White'
+      : 'Black';
+
+  const randomText =
+    computerColorMode === 'random'
+      ? ' • Random assignment'
+      : '';
+
+  indicator.textContent =
+    `You are ${humanColor} • ` +
+    `Computer is ${computerColorName}` +
+    randomText;
+
+  indicator.style.display =
+    'block';
+}
+
 function assignComputerColorForNewGame() {
-  if (computerColorMode === 'random') {
+  if (
+    computerColorMode === 'random'
+  ) {
     computerColor =
       Math.random() < 0.5
         ? 'white'
@@ -2512,6 +2616,8 @@ function assignComputerColorForNewGame() {
     computerColor =
       computerColorMode;
   }
+
+  updatePlayerSideIndicator();
 
   const status =
     document.getElementById(
@@ -2527,7 +2633,10 @@ function assignComputerColorForNewGame() {
         ? 'White'
         : 'Black';
 
-    if (computerColorMode === 'random') {
+    if (
+      computerColorMode ===
+      'random'
+    ) {
       status.textContent =
         `Random assignment: Computer is ${colorName}`;
     } else {
@@ -2702,9 +2811,10 @@ computerEnabledInput.addEventListener('change', event => {
   computerEnabled = event.target.checked;
 
   if (computerEnabled) {
-    initializeChessEngine();
-    maybeStartComputerTurn();
-  } else {
+  updatePlayerSideIndicator();
+  initializeChessEngine();
+  maybeStartComputerTurn();
+} else {
   cancelPendingComputerMove();
 
   selectedSquare = null;
@@ -2717,22 +2827,60 @@ computerEnabledInput.addEventListener('change', event => {
     document.getElementById('engineStatus')
       .textContent = 'Computer player off';
 
+	updatePlayerSideIndicator();	
+
     drawBoard();
     updateStatusBar();
   }
 
   saveComputerSettings();
+  saveGame();
 });
 
 computerColorSelect.addEventListener(
   'change',
   event => {
+    const requestedMode =
+      event.target.value;
+
+    if (
+      currentGame === 'chess' &&
+      moveHistory.length > 0
+    ) {
+      const approved =
+        confirm(
+          'Changing sides will start a new chess game. Continue?'
+        );
+
+      if (!approved) {
+        event.target.value =
+          computerColorMode;
+
+        return;
+      }
+
+      computerColorMode =
+        requestedMode;
+
+      localStorage.removeItem(
+        getSaveKey()
+      );
+
+      hardResetForCurrentGame();
+      saveComputerSettings();
+
+      return;
+    }
+
     cancelPendingComputerMove();
 
     computerColorMode =
-      event.target.value;
+      requestedMode;
 
     assignComputerColorForNewGame();
+
+    saveGame();
+    updatePlayerSideIndicator();
 
     selectedSquare = null;
     legalMoves = [];
@@ -2839,9 +2987,7 @@ computerLevel =
     document.getElementById('computerLevel')
       .value = String(computerLevel);
 
-    if (computerEnabled) {
-      initializeChessEngine();
-    }
+    
   } catch (error) {
     console.warn(
       'Could not restore computer settings:',
@@ -3489,6 +3635,7 @@ function stopComputerForPGNImport() {
       'Computer player off';
   }
 
+  updatePlayerSideIndicator();
   saveComputerSettings();
 }
 
@@ -5515,15 +5662,31 @@ setURLParam('game', currentGame);
 setURLParam('theme', currentTheme);
 
 loadClockSettings();
-loadGame();
+
+/*
+  Load the general computer preference
+  first. The saved game may then restore
+  the actual side assigned to that game.
+*/
 loadComputerSettings();
+loadGame();
+
 restoreImportedPGNPlaylist();
+
+updatePlayerSideIndicator();
 updateClockDisplay();
 updateGameActionButtons();
+
+if (
+  computerEnabled &&
+  currentGame === 'chess'
+) {
+  initializeChessEngine();
+}
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.1.2 (Pawn Promotion and Draw Logic Update)
+  Version 3.1.3 (Persistent Random Sides and Player Indicator)
 </div>
 
 </body>
