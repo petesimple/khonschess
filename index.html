@@ -76,22 +76,36 @@ body {
   pointer-events: none;
 }
 
-.white {
-  background-color: #eee;
-  color: #000;
+:root {
+  --board-light: #eeeeee;
+  --board-dark: #444444;
+  --board-light-text: #111111;
+  --board-dark-text: #ffffff;
+  --board-border: #ffffff;
 }
 
-.black {
-  background-color: #444;
-  color: #fff;
+#chessboard {
+  border-color: var(--board-border);
+}
+
+.square.white {
+  background-color: var(--board-light);
+  color: var(--board-light-text);
+}
+
+.square.black {
+  background-color: var(--board-dark);
+  color: var(--board-dark-text);
 }
 
 .selected {
   outline: 3px solid yellow;
 }
 
-.highlight {
-  background-color: #66ff6655;
+.square.highlight {
+  box-shadow:
+    inset 0 0 0 4px rgba(80, 255, 80, 0.8),
+    inset 0 0 20px rgba(80, 255, 80, 0.35);
 }
 
 .in-check {
@@ -435,6 +449,108 @@ body {
   text-align: center;
 }
 
+.board-theme-controls {
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #555;
+}
+
+.board-theme-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 10px;
+  width: 100%;
+}
+
+.board-theme-grid select {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px;
+  box-sizing: border-box;
+  background: #333;
+  color: #fff;
+  border: 1px solid #888;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.board-color-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-color-control input[type="color"] {
+  width: 48px;
+  height: 36px;
+  padding: 2px;
+  background: #222;
+  border: 1px solid #888;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-color-value {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  background: #1d1d1d;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  font-family: monospace;
+  text-transform: uppercase;
+}
+
+.board-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 112px;
+  height: 112px;
+  margin: 12px auto 0;
+  border: 2px solid var(--board-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.board-preview-square {
+  width: 100%;
+  height: 100%;
+}
+
+.board-preview-square.light {
+  background: var(--board-light);
+}
+
+.board-preview-square.dark {
+  background: var(--board-dark);
+}
+
+.board-custom-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.board-custom-actions button {
+  min-height: 36px;
+  padding: 6px 10px;
+  background: #333;
+  color: #0ff;
+  border: 1px solid #0ff;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+#customBoardControls {
+  display: none;
+  margin-top: 10px;
+}
+
 </style>
 </head>
 
@@ -608,7 +724,7 @@ body {
 
         <div class="tool-row">
           <label for="themeSelect">
-            Theme:
+            Pieces:
           </label>
 
           <select
@@ -676,6 +792,134 @@ body {
             </option>
           </select>
         </div>
+        
+        <div class="board-theme-controls">
+  <div class="tool-section-title">
+    Board
+  </div>
+
+  <div class="board-theme-grid">
+    <label for="boardThemeSelect">
+      Board:
+    </label>
+
+    <select id="boardThemeSelect">
+      <option value="classic">
+        Classic Gray
+      </option>
+
+      <option value="walnut">
+        Walnut
+      </option>
+
+      <option value="green">
+        Tournament Green
+      </option>
+
+      <option value="blue">
+        Tournament Blue
+      </option>
+
+      <option value="midnight">
+        Midnight
+      </option>
+
+      <option value="custom">
+        Custom Colors
+      </option>
+    </select>
+  </div>
+
+  <div id="customBoardControls">
+    <div class="board-theme-grid">
+      <label for="boardLightColor">
+        Light:
+      </label>
+
+      <div class="board-color-control">
+        <input
+          id="boardLightColor"
+          type="color"
+          value="#F0D9B5"
+        >
+
+        <input
+          id="boardLightHex"
+          class="board-color-value"
+          type="text"
+          value="#F0D9B5"
+          maxlength="7"
+          spellcheck="false"
+        >
+      </div>
+
+      <label for="boardDarkColor">
+        Dark:
+      </label>
+
+      <div class="board-color-control">
+        <input
+          id="boardDarkColor"
+          type="color"
+          value="#B58863"
+        >
+
+        <input
+          id="boardDarkHex"
+          class="board-color-value"
+          type="text"
+          value="#B58863"
+          maxlength="7"
+          spellcheck="false"
+        >
+      </div>
+
+      <label for="boardBorderColor">
+        Border:
+      </label>
+
+      <div class="board-color-control">
+        <input
+          id="boardBorderColor"
+          type="color"
+          value="#FFFFFF"
+        >
+
+        <input
+          id="boardBorderHex"
+          class="board-color-value"
+          type="text"
+          value="#FFFFFF"
+          maxlength="7"
+          spellcheck="false"
+        >
+      </div>
+    </div>
+
+    <div class="board-custom-actions">
+      <button
+        id="swapBoardColorsButton"
+        type="button"
+      >
+        ⇄ Swap Colors
+      </button>
+
+      <button
+        id="resetBoardColorsButton"
+        type="button"
+      >
+        ↺ Reset Walnut
+      </button>
+    </div>
+  </div>
+
+  <div
+    id="boardPreview"
+    class="board-preview"
+    aria-label="Board color preview"
+  ></div>
+</div>
+        
       </div>
 
       <div class="tool-section">
@@ -1058,6 +1302,14 @@ let pgnMoves = [];
 let currentTheme = 'classic';
 let currentGame = 'chess';
 
+let boardThemeKey = 'classic';
+
+let customBoardColors = {
+  light: '#F0D9B5',
+  dark: '#B58863',
+  border: '#FFFFFF'
+};
+
 let diceRoll = [];
 let diceUsed = [];
 let selectedPoint = null;
@@ -1160,6 +1412,43 @@ let clockLastTick = null;
 let clockInterval = null;
 let clockDelayRemainingMs = 0;
 let clockFlaggedColor = null;
+
+const BOARD_THEMES = {
+  classic: {
+    name: 'Classic Gray',
+    light: '#EEEEEE',
+    dark: '#444444',
+    border: '#FFFFFF'
+  },
+
+  walnut: {
+    name: 'Walnut',
+    light: '#F0D9B5',
+    dark: '#B58863',
+    border: '#6B4423'
+  },
+
+  green: {
+    name: 'Tournament Green',
+    light: '#EEEED2',
+    dark: '#769656',
+    border: '#4A5D32'
+  },
+
+  blue: {
+    name: 'Tournament Blue',
+    light: '#DEE3E6',
+    dark: '#5D8AA8',
+    border: '#315A70'
+  },
+
+  midnight: {
+    name: 'Midnight',
+    light: '#70798C',
+    dark: '#25283D',
+    border: '#A0C4FF'
+  }
+};
 
 function initializeChessEngine() {
   if (chessEngine) return;
@@ -5066,6 +5355,296 @@ function loadClockSettings() {
   }
 }
 
+function normalizeHexColor(
+  value,
+  fallback
+) {
+  const normalized =
+    String(value || '')
+      .trim()
+      .toUpperCase();
+
+  if (
+    /^#[0-9A-F]{6}$/
+      .test(normalized)
+  ) {
+    return normalized;
+  }
+
+  return fallback;
+}
+
+function getActiveBoardColors() {
+  if (
+    boardThemeKey === 'custom'
+  ) {
+    return {
+      ...customBoardColors
+    };
+  }
+
+  return (
+    BOARD_THEMES[boardThemeKey] ||
+    BOARD_THEMES.classic
+  );
+}
+
+function applyBoardTheme() {
+  const colors =
+    getActiveBoardColors();
+
+  const root =
+    document.documentElement;
+
+  root.style.setProperty(
+    '--board-light',
+    colors.light
+  );
+
+  root.style.setProperty(
+    '--board-dark',
+    colors.dark
+  );
+
+  root.style.setProperty(
+    '--board-border',
+    colors.border
+  );
+
+  updateBoardThemeControls();
+}
+
+function updateBoardThemeControls() {
+  const select =
+    document.getElementById(
+      'boardThemeSelect'
+    );
+
+  const customControls =
+    document.getElementById(
+      'customBoardControls'
+    );
+
+  const lightPicker =
+    document.getElementById(
+      'boardLightColor'
+    );
+
+  const darkPicker =
+    document.getElementById(
+      'boardDarkColor'
+    );
+
+  const borderPicker =
+    document.getElementById(
+      'boardBorderColor'
+    );
+
+  const lightHex =
+    document.getElementById(
+      'boardLightHex'
+    );
+
+  const darkHex =
+    document.getElementById(
+      'boardDarkHex'
+    );
+
+  const borderHex =
+    document.getElementById(
+      'boardBorderHex'
+    );
+
+  if (select) {
+    select.value =
+      boardThemeKey;
+  }
+
+  if (customControls) {
+    customControls.style.display =
+      boardThemeKey === 'custom'
+        ? 'block'
+        : 'none';
+  }
+
+  if (lightPicker) {
+    lightPicker.value =
+      customBoardColors.light;
+  }
+
+  if (darkPicker) {
+    darkPicker.value =
+      customBoardColors.dark;
+  }
+
+  if (borderPicker) {
+    borderPicker.value =
+      customBoardColors.border;
+  }
+
+  if (lightHex) {
+    lightHex.value =
+      customBoardColors.light;
+  }
+
+  if (darkHex) {
+    darkHex.value =
+      customBoardColors.dark;
+  }
+
+  if (borderHex) {
+    borderHex.value =
+      customBoardColors.border;
+  }
+}
+
+function buildBoardPreview() {
+  const preview =
+    document.getElementById(
+      'boardPreview'
+    );
+
+  if (!preview) {
+    return;
+  }
+
+  preview.innerHTML = '';
+
+  for (
+    let row = 0;
+    row < 4;
+    row++
+  ) {
+    for (
+      let col = 0;
+      col < 4;
+      col++
+    ) {
+      const square =
+        document.createElement(
+          'div'
+        );
+
+      square.className =
+        'board-preview-square ' +
+        (
+          (row + col) % 2 === 0
+            ? 'light'
+            : 'dark'
+        );
+
+      preview.appendChild(
+        square
+      );
+    }
+  }
+}
+
+function saveBoardSettings() {
+  localStorage.setItem(
+    'khonsChessBoardSettings',
+    JSON.stringify({
+      themeKey:
+        boardThemeKey,
+
+      customColors: {
+        ...customBoardColors
+      }
+    })
+  );
+}
+
+function loadBoardSettings() {
+  try {
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          'khonsChessBoardSettings'
+        ) || '{}'
+      );
+
+    const validTheme =
+      saved.themeKey === 'custom' ||
+      Boolean(
+        BOARD_THEMES[
+          saved.themeKey
+        ]
+      );
+
+    boardThemeKey =
+      validTheme
+        ? saved.themeKey
+        : 'classic';
+
+    const savedColors =
+      saved.customColors || {};
+
+    customBoardColors = {
+      light:
+        normalizeHexColor(
+          savedColors.light,
+          '#F0D9B5'
+        ),
+
+      dark:
+        normalizeHexColor(
+          savedColors.dark,
+          '#B58863'
+        ),
+
+      border:
+        normalizeHexColor(
+          savedColors.border,
+          '#FFFFFF'
+        )
+    };
+  } catch (error) {
+    console.warn(
+      'Could not restore board settings:',
+      error
+    );
+
+    boardThemeKey =
+      'classic';
+
+    customBoardColors = {
+      light: '#F0D9B5',
+      dark: '#B58863',
+      border: '#FFFFFF'
+    };
+  }
+
+  applyBoardTheme();
+  buildBoardPreview();
+}
+
+function setCustomBoardColor(
+  colorName,
+  value
+) {
+  const fallbackColors = {
+    light: '#F0D9B5',
+    dark: '#B58863',
+    border: '#FFFFFF'
+  };
+
+  customBoardColors[
+    colorName
+  ] =
+    normalizeHexColor(
+      value,
+      fallbackColors[
+        colorName
+      ]
+    );
+
+  boardThemeKey =
+    'custom';
+
+  applyBoardTheme();
+  saveBoardSettings();
+}
+
 function changeTheme(theme) {
   currentTheme = theme;
   setURLParam('theme', theme);
@@ -5649,6 +6228,182 @@ document.getElementById('gameSelect').addEventListener('change', (e) => {
   }
 });
 
+const boardThemeSelect =
+  document.getElementById(
+    'boardThemeSelect'
+  );
+
+const boardLightColor =
+  document.getElementById(
+    'boardLightColor'
+  );
+
+const boardDarkColor =
+  document.getElementById(
+    'boardDarkColor'
+  );
+
+const boardBorderColor =
+  document.getElementById(
+    'boardBorderColor'
+  );
+
+const boardLightHex =
+  document.getElementById(
+    'boardLightHex'
+  );
+
+const boardDarkHex =
+  document.getElementById(
+    'boardDarkHex'
+  );
+
+const boardBorderHex =
+  document.getElementById(
+    'boardBorderHex'
+  );
+
+const swapBoardColorsButton =
+  document.getElementById(
+    'swapBoardColorsButton'
+  );
+
+const resetBoardColorsButton =
+  document.getElementById(
+    'resetBoardColorsButton'
+  );
+
+
+    boardThemeSelect.addEventListener(
+  'change',
+  event => {
+    const previousColors =
+      getActiveBoardColors();
+
+    const requestedTheme =
+      event.target.value;
+
+    if (
+      requestedTheme === 'custom' &&
+      boardThemeKey !== 'custom'
+    ) {
+      customBoardColors = {
+        light:
+          previousColors.light,
+
+        dark:
+          previousColors.dark,
+
+        border:
+          previousColors.border
+      };
+    }
+
+    boardThemeKey =
+      requestedTheme;
+
+    applyBoardTheme();
+    saveBoardSettings();
+  }
+);
+
+boardLightColor.addEventListener(
+  'input',
+  event => {
+    setCustomBoardColor(
+      'light',
+      event.target.value
+    );
+  }
+);
+
+boardDarkColor.addEventListener(
+  'input',
+  event => {
+    setCustomBoardColor(
+      'dark',
+      event.target.value
+    );
+  }
+);
+
+boardBorderColor.addEventListener(
+  'input',
+  event => {
+    setCustomBoardColor(
+      'border',
+      event.target.value
+    );
+  }
+);
+
+boardLightHex.addEventListener(
+  'change',
+  event => {
+    setCustomBoardColor(
+      'light',
+      event.target.value
+    );
+  }
+);
+
+boardDarkHex.addEventListener(
+  'change',
+  event => {
+    setCustomBoardColor(
+      'dark',
+      event.target.value
+    );
+  }
+);
+
+boardBorderHex.addEventListener(
+  'change',
+  event => {
+    setCustomBoardColor(
+      'border',
+      event.target.value
+    );
+  }
+);
+
+swapBoardColorsButton.addEventListener(
+  'click',
+  () => {
+    const previousLight =
+      customBoardColors.light;
+
+    customBoardColors.light =
+      customBoardColors.dark;
+
+    customBoardColors.dark =
+      previousLight;
+
+    boardThemeKey =
+      'custom';
+
+    applyBoardTheme();
+    saveBoardSettings();
+  }
+);
+
+resetBoardColorsButton.addEventListener(
+  'click',
+  () => {
+    customBoardColors = {
+      light: '#F0D9B5',
+      dark: '#B58863',
+      border: '#6B4423'
+    };
+
+    boardThemeKey =
+      'custom';
+
+    applyBoardTheme();
+    saveBoardSettings();
+  }
+);
+
 document
   .getElementById('pgnFileInput')
   .addEventListener('change', handlePGNFileUpload);
@@ -5661,6 +6416,7 @@ applyThemeFromURL();
 setURLParam('game', currentGame);
 setURLParam('theme', currentTheme);
 
+loadBoardSettings();
 loadClockSettings();
 
 /*
@@ -5686,7 +6442,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.1.3 (Persistent Random Sides and Player Indicator)
+  Version 3.1.4 (Custom Board Colors)
 </div>
 
 </body>
