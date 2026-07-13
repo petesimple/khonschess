@@ -236,7 +236,7 @@ body {
   overflow: hidden;
 }
 
-.tools-panel summary {
+.tools-panel > summary {
   padding: 12px 14px;
   background: #2b2b2b;
   color: #fff;
@@ -248,17 +248,17 @@ body {
   list-style: none;
 }
 
-.tools-panel summary::-webkit-details-marker {
+.tools-panel > summary::-webkit-details-marker {
   display: none;
 }
 
-.tools-panel summary::after {
+.tools-panel > summary::after {
   content: "▼";
   float: right;
   color: #0ff;
 }
 
-.tools-panel[open] summary::after {
+.tools-panel[open] > summary::after {
   content: "▲";
 }
 
@@ -277,6 +277,51 @@ body {
   background: #292929;
   border: 1px solid #555;
   border-radius: 8px;
+}
+
+.tool-accordion {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tool-accordion > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  padding: 11px 12px;
+  color: #0ff;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.tool-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-accordion > summary::after {
+  content: "+";
+  color: #aaa;
+  font-size: 1.25em;
+  line-height: 1;
+}
+
+.tool-accordion[open] > summary::after {
+  content: "−";
+  color: #0ff;
+}
+
+.tool-accordion[open] > summary {
+  background: #303030;
+}
+
+.tool-accordion-content {
+  padding: 10px;
+  border-top: 1px solid #444;
 }
 
 .tool-section-title {
@@ -937,10 +982,9 @@ body {
 
     <div class="tools-panel-content">
 
-      <div class="tool-section">
-        <div class="tool-section-title">
-          Appearance
-        </div>
+      <details class="tool-section tool-accordion">
+        <summary>Appearance</summary>
+        <div class="tool-accordion-content">
 
         <div class="tool-row">
           <label for="themeSelect">
@@ -1140,12 +1184,12 @@ body {
   ></div>
 </div>
         
-      </div>
-
-      <div class="tool-section">
-        <div class="tool-section-title">
-          Game
         </div>
+      </details>
+
+      <details class="tool-section tool-accordion">
+        <summary>Game</summary>
+        <div class="tool-accordion-content">
 
         <div class="tool-row">
           <button
@@ -1200,15 +1244,15 @@ body {
   </button>
 </div>
         
-      </div>
+        </div>
+      </details>
 
-<div
+<details
   id="clockControls"
-  class="tool-section"
+  class="tool-section tool-accordion"
 >
-  <div class="tool-section-title">
-    Chess Clock
-  </div>
+  <summary>Chess Clock</summary>
+  <div class="tool-accordion-content">
 
   <div class="clock-settings-row">
     <label>
@@ -1279,12 +1323,12 @@ body {
   <div id="clockStatus">
     Clock disabled
   </div>
-</div>
+  </div>
+</details>
 
-      <div class="tool-section">
-        <div class="tool-section-title">
-          PGN Files
-        </div>
+      <details class="tool-section tool-accordion">
+        <summary>PGN Files</summary>
+        <div class="tool-accordion-content">
 
         <div class="tool-row">
           <button
@@ -1406,12 +1450,12 @@ body {
           </div>
 
         </div>
-      </div>
-
-      <div class="tool-section">
-        <div class="tool-section-title">
-          Play by Message
         </div>
+      </details>
+
+      <details class="tool-section tool-accordion">
+        <summary>Play by Message</summary>
+        <div class="tool-accordion-content">
 
         <p style="margin: 0 0 10px; color: #ddd; font-size: 0.85em; line-height: 1.45;">
           Play like correspondence chess without an account or database. After each move, Khon's Chess puts the complete game into a private URL for you to send through Messages, email, or another sharing app. Your opponent opens the link, makes a move, and sends a new link back.
@@ -1431,15 +1475,15 @@ body {
             </small>
           </span>
         </label>
-      </div>
-
-      <div
-        id="computerControls"
-        class="tool-section"
-      >
-        <div class="tool-section-title">
-          Computer Player
         </div>
+      </details>
+
+      <details
+        id="computerControls"
+        class="tool-section tool-accordion"
+      >
+        <summary>Computer Player</summary>
+        <div class="tool-accordion-content">
 
         <div class="tool-row">
 
@@ -1523,7 +1567,8 @@ body {
         >
           Computer player off
         </div>
-      </div>
+        </div>
+      </details>
 
     </div>
   </details>
@@ -7413,7 +7458,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.2.1 (Opt-in Play by Message)
+  Version 3.2.2 (Accordion Settings)
 </div>
 
 </body>
