@@ -308,107 +308,6 @@ body {
   box-sizing: border-box;
 }
 
-.correspondence-panel {
-  width: 90vw;
-  max-width: 480px;
-  margin-top: 16px;
-  padding: 14px;
-  box-sizing: border-box;
-  background: #171f24;
-  border: 1px solid #0ff;
-  border-radius: 10px;
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.25);
-}
-
-.correspondence-panel h2 {
-  margin: 0 0 6px;
-  color: #0ff;
-  font-size: 1.05em;
-}
-
-.correspondence-panel p {
-  margin: 6px 0 12px;
-  color: #ddd;
-  font-size: 0.88em;
-  line-height: 1.45;
-}
-
-.correspondence-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.correspondence-grid label {
-  color: #bbb;
-  font-size: 0.78em;
-}
-
-.correspondence-grid input,
-.correspondence-grid select,
-.correspondence-paste {
-  width: 100%;
-  min-height: 40px;
-  margin-top: 4px;
-  padding: 8px;
-  box-sizing: border-box;
-  background: #292929;
-  color: #fff;
-  border: 1px solid #777;
-  border-radius: 6px;
-  font-family: monospace;
-}
-
-.correspondence-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.correspondence-actions button {
-  flex: 1 1 130px;
-  min-height: 42px;
-  padding: 8px 10px;
-  background: #263238;
-  color: #0ff;
-  border: 1px solid #0ff;
-  border-radius: 7px;
-  font-family: monospace;
-  font-weight: bold;
-}
-
-.correspondence-actions button.primary {
-  background: #0b4d4d;
-  color: #fff;
-}
-
-.correspondence-actions button.danger {
-  color: #ffaaaa;
-  border-color: #ff7777;
-}
-
-.correspondence-status {
-  padding: 10px;
-  background: #0e1518;
-  color: #0f0;
-  border-left: 3px solid #0f0;
-  line-height: 1.45;
-}
-
-.correspondence-note {
-  min-height: 18px;
-  margin-top: 8px;
-  color: #ffda72;
-  font-size: 0.8em;
-}
-
-@media (max-width: 420px) {
-  .correspondence-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .chess-clock {
   display: none;
   width: 90vw;
@@ -787,124 +686,6 @@ body {
         "
       ></div>
     </div>
-
-    <section
-      id="correspondencePanel"
-      class="correspondence-panel"
-      aria-labelledby="correspondenceTitle"
-    >
-      <h2 id="correspondenceTitle">✉️ Play by Message</h2>
-
-      <div id="correspondenceSetup">
-        <p>
-          Pass the complete game back and forth in a private link. No account or online game database is used.
-        </p>
-
-        <div class="correspondence-grid">
-          <label>
-            Your name
-            <input
-              id="correspondenceYourName"
-              type="text"
-              maxlength="30"
-              value="Player 1"
-              autocomplete="name"
-            >
-          </label>
-
-          <label>
-            Opponent's name
-            <input
-              id="correspondenceOpponentName"
-              type="text"
-              maxlength="30"
-              value="Player 2"
-            >
-          </label>
-
-          <label>
-            Your color
-            <select id="correspondenceColor">
-              <option value="white">White</option>
-              <option value="black">Black</option>
-              <option value="random">Random</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="correspondence-actions">
-          <button
-            type="button"
-            class="primary"
-            onclick="startCorrespondenceGame()"
-          >
-            Start Message Game
-          </button>
-        </div>
-
-        <p style="margin-top: 14px;">
-          Opening a received Khon's Chess link normally imports it automatically. You can also paste one here.
-        </p>
-
-        <input
-          id="correspondencePasteInput"
-          class="correspondence-paste"
-          type="text"
-          inputmode="url"
-          placeholder="Paste a Khon's Chess game link"
-          aria-label="Paste a Khon's Chess game link"
-        >
-
-        <div class="correspondence-actions">
-          <button
-            type="button"
-            onclick="importPastedCorrespondenceLink()"
-          >
-            Open Pasted Link
-          </button>
-        </div>
-      </div>
-
-      <div id="correspondenceActive" hidden>
-        <div
-          id="correspondenceStatus"
-          class="correspondence-status"
-          aria-live="polite"
-        ></div>
-
-        <div class="correspondence-actions">
-          <button
-            id="correspondenceShareButton"
-            type="button"
-            class="primary"
-            onclick="shareCorrespondenceGame()"
-          >
-            Send / Share Game
-          </button>
-
-          <button
-            type="button"
-            onclick="copyCorrespondenceLink()"
-          >
-            Copy Game Link
-          </button>
-
-          <button
-            type="button"
-            class="danger"
-            onclick="leaveCorrespondenceGame()"
-          >
-            Leave Message Game
-          </button>
-        </div>
-
-        <div
-          id="correspondenceNote"
-          class="correspondence-note"
-          aria-live="polite"
-        ></div>
-      </div>
-    </section>
 
     <div
       id="moveLog"
@@ -1572,10 +1353,6 @@ let pgnPlaybackTimer = null;
 let pgnPlaybackDelay = 1000;
 let pgnPlaybackPaused = true;
 
-let correspondenceGame = null;
-let correspondenceApplying = false;
-let correspondenceMessage = '';
-
 let gameEndReason = '';
 
 const CLOCK_PRESETS = {
@@ -1886,603 +1663,6 @@ function gameStateToFEN() {
   ].join(' ');
 }
 
-function correspondenceHash(textValue) {
-  let hash = 2166136261;
-
-  for (let i = 0; i < textValue.length; i++) {
-    hash ^= textValue.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return (hash >>> 0).toString(36);
-}
-
-function encodeCorrespondenceData(data) {
-  const json = JSON.stringify(data);
-  const bytes = new TextEncoder().encode(json);
-  let binary = '';
-
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
-function decodeCorrespondenceData(encoded) {
-  const normalized = encoded
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  const padding = '='.repeat((4 - normalized.length % 4) % 4);
-  const binary = atob(normalized + padding);
-  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-  return JSON.parse(new TextDecoder().decode(bytes));
-}
-
-function makeCorrespondenceId() {
-  const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const values = new Uint8Array(8);
-
-  if (window.crypto && window.crypto.getRandomValues) {
-    window.crypto.getRandomValues(values);
-  } else {
-    for (let i = 0; i < values.length; i++) {
-      values[i] = Math.floor(Math.random() * 256);
-    }
-  }
-
-  return Array.from(values, value => alphabet[value % alphabet.length]).join('');
-}
-
-function cleanCorrespondenceName(value, fallback) {
-  const cleaned = String(value || '')
-    .replace(/[<>\r\n]/g, '')
-    .trim()
-    .slice(0, 30);
-
-  return cleaned || fallback;
-}
-
-function moveHistoryToUCI() {
-  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-
-  return moveHistory.map(move => {
-    let notation =
-      files[move.fromCol] +
-      String(8 - move.fromRow) +
-      files[move.toCol] +
-      String(8 - move.toRow);
-
-    if (move.promotion) {
-      notation += move.promotion.toLowerCase();
-    }
-
-    return notation;
-  });
-}
-
-function correspondenceStorageKey(id) {
-  return `khonsChessMessageGame_${id}`;
-}
-
-function saveCorrespondenceGame() {
-  if (!correspondenceGame) return;
-
-  correspondenceGame.moves = moveHistoryToUCI();
-  correspondenceGame.result = gameResult;
-  correspondenceGame.updatedAt = Date.now();
-
-  localStorage.setItem(
-    correspondenceStorageKey(correspondenceGame.id),
-    JSON.stringify(correspondenceGame)
-  );
-
-  localStorage.setItem(
-    'khonsChessActiveMessageGame',
-    correspondenceGame.id
-  );
-}
-
-function loadStoredCorrespondenceGame(id) {
-  try {
-    const stored = localStorage.getItem(correspondenceStorageKey(id));
-    return stored ? JSON.parse(stored) : null;
-  } catch (error) {
-    console.warn('Could not read message game:', error);
-    return null;
-  }
-}
-
-function getCorrespondencePayload() {
-  if (!correspondenceGame) return null;
-
-  const body = {
-    v: 1,
-    id: correspondenceGame.id,
-    w: correspondenceGame.whiteName,
-    b: correspondenceGame.blackName,
-    m: moveHistoryToUCI(),
-    to: currentPlayer,
-    r: gameResult
-  };
-
-  return {
-    d: body,
-    c: correspondenceHash(JSON.stringify(body))
-  };
-}
-
-function buildCorrespondenceURL() {
-  const payload = getCorrespondencePayload();
-
-  if (!payload) return '';
-
-  const url = new URL(window.location.href);
-  url.searchParams.set('game', 'chess');
-  url.hash = `khon=${encodeCorrespondenceData(payload)}`;
-  return url.toString();
-}
-
-function correspondenceShareText() {
-  if (!correspondenceGame) return '';
-
-  const recipientName =
-    currentPlayer === 'white'
-      ? correspondenceGame.whiteName
-      : correspondenceGame.blackName;
-
-  const senderName =
-    correspondenceGame.localColor === 'white'
-      ? correspondenceGame.whiteName
-      : correspondenceGame.blackName;
-
-  const moves = moveHistoryToUCI();
-
-  if (!moves.length) {
-    return `${senderName} invited you to play ${currentPlayer} in Khon's Chess. Open the link to begin.`;
-  }
-
-  let lastMove = moves[moves.length - 1];
-  const pair = pgnMoves[Math.floor((moves.length - 1) / 2)];
-
-  if (pair) {
-    lastMove = moves.length % 2 === 1 ? pair[0] : pair[1];
-  }
-
-  return `${recipientName}, ${senderName} played ${lastMove || moves[moves.length - 1]}. It's your turn in Khon's Chess.`;
-}
-
-async function copyTextToClipboard(textValue) {
-  if (navigator.clipboard && window.isSecureContext) {
-    await navigator.clipboard.writeText(textValue);
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = textValue;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  textarea.remove();
-}
-
-async function shareCorrespondenceGame() {
-  if (!correspondenceGame) return;
-
-  const url = buildCorrespondenceURL();
-  const text = correspondenceShareText();
-
-  try {
-    if (navigator.share) {
-      await navigator.share({
-        title: "Khon's Chess message game",
-        text,
-        url
-      });
-      correspondenceMessage = 'Game shared. Keep this local copy while you wait for the reply.';
-    } else {
-      await copyTextToClipboard(`${text}\n\n${url}`);
-      correspondenceMessage = 'Message and game link copied. Paste them into a text message.';
-    }
-
-    correspondenceGame.lastSharedPly = moveHistory.length;
-    saveCorrespondenceGame();
-    updateCorrespondencePanel();
-  } catch (error) {
-    if (error && error.name !== 'AbortError') {
-      correspondenceMessage = 'Sharing was unavailable. Use Copy Game Link instead.';
-      updateCorrespondencePanel();
-    }
-  }
-}
-
-async function copyCorrespondenceLink() {
-  if (!correspondenceGame) return;
-
-  try {
-    await copyTextToClipboard(buildCorrespondenceURL());
-    correspondenceGame.lastSharedPly = moveHistory.length;
-    correspondenceMessage = 'Game link copied. Paste it into a message to your opponent.';
-    saveCorrespondenceGame();
-  } catch (error) {
-    correspondenceMessage = 'The link could not be copied automatically.';
-  }
-
-  updateCorrespondencePanel();
-}
-
-function historiesShareOneLine(first, second) {
-  const commonLength = Math.min(first.length, second.length);
-
-  for (let i = 0; i < commonLength; i++) {
-    if (first[i] !== second[i]) return false;
-  }
-
-  return true;
-}
-
-function validateCorrespondenceBody(body) {
-  if (!body || body.v !== 1) {
-    throw new Error('This message-game version is not supported.');
-  }
-
-  if (!/^[23456789A-HJ-NP-Z]{6,16}$/.test(body.id || '')) {
-    throw new Error('The game ID is invalid.');
-  }
-
-  if (!Array.isArray(body.m) || body.m.length > 1000) {
-    throw new Error('The move list is invalid.');
-  }
-
-  if (!body.m.every(move => /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))) {
-    throw new Error('The link contains an invalid chess move.');
-  }
-
-  if (!['white', 'black'].includes(body.to)) {
-    throw new Error('The player assignment is invalid.');
-  }
-
-  const expectedTurn = body.m.length % 2 === 0 ? 'white' : 'black';
-  if (body.to !== expectedTurn) {
-    throw new Error('The link has an inconsistent turn number.');
-  }
-}
-
-function parseCorrespondenceLink(linkValue) {
-  let encoded = '';
-  const input = String(linkValue || '').trim();
-
-  if (!input) throw new Error('No game link was provided.');
-
-  try {
-    const parsedURL = new URL(input, window.location.href);
-    const match = parsedURL.hash.match(/^#khon=([A-Za-z0-9_-]+)$/);
-    encoded = match ? match[1] : '';
-  } catch (error) {
-    encoded = '';
-  }
-
-  if (!encoded && /^[A-Za-z0-9_-]+$/.test(input)) {
-    encoded = input;
-  }
-
-  if (!encoded) {
-    throw new Error("This is not a Khon's Chess message-game link.");
-  }
-
-  const packet = decodeCorrespondenceData(encoded);
-
-  if (
-    !packet ||
-    !packet.d ||
-    packet.c !== correspondenceHash(JSON.stringify(packet.d))
-  ) {
-    throw new Error('The game link is damaged or incomplete.');
-  }
-
-  validateCorrespondenceBody(packet.d);
-  return packet.d;
-}
-
-function replayCorrespondenceGame(gameToLoad) {
-  currentGame = 'chess';
-
-  const gameSelect = document.getElementById('gameSelect');
-  if (gameSelect) gameSelect.value = 'chess';
-
-  setURLParam('game', 'chess');
-  stopPGNPlayback();
-  pauseChessClock();
-  stopComputerForPGNImport();
-  resetChessStateForImport();
-
-  correspondenceApplying = true;
-  importingPGN = true;
-
-  try {
-    for (const uciMove of gameToLoad.moves) {
-      const move = parseUCIMove(uciMove);
-
-      if (
-        !move ||
-        !executeChessMove(
-          move.fromRow,
-          move.fromCol,
-          move.toRow,
-          move.toCol,
-          move.promotion || 'Q'
-        )
-      ) {
-        throw new Error(`The received move ${uciMove} is illegal.`);
-      }
-    }
-  } finally {
-    importingPGN = false;
-    correspondenceApplying = false;
-  }
-
-  drawBoard();
-  updateStatusBar();
-}
-
-function captureCorrespondenceBoardSnapshot() {
-  return JSON.stringify({
-    currentGame,
-    gameState,
-    moveHistory,
-    pgnMoves,
-    currentPlayer,
-    castlingRights,
-    enPassantTarget,
-    gameResult,
-    gameEndReason,
-    halfMoveClock,
-    fullMoveNumber,
-    correspondenceGame
-  });
-}
-
-function restoreCorrespondenceBoardSnapshot(snapshotText) {
-  const snapshot = JSON.parse(snapshotText);
-  currentGame = snapshot.currentGame;
-  gameState = snapshot.gameState;
-  moveHistory = snapshot.moveHistory;
-  pgnMoves = snapshot.pgnMoves;
-  currentPlayer = snapshot.currentPlayer;
-  castlingRights = snapshot.castlingRights;
-  enPassantTarget = snapshot.enPassantTarget;
-  gameResult = snapshot.gameResult;
-  gameEndReason = snapshot.gameEndReason;
-  halfMoveClock = snapshot.halfMoveClock;
-  fullMoveNumber = snapshot.fullMoveNumber;
-  correspondenceGame = snapshot.correspondenceGame;
-
-  const gameSelect = document.getElementById('gameSelect');
-  if (gameSelect) gameSelect.value = currentGame;
-
-  drawBoard();
-  updateStatusBar();
-  saveGame();
-}
-
-function acceptCorrespondenceBody(body) {
-  const boardSnapshot = captureCorrespondenceBoardSnapshot();
-  const incoming = {
-    version: 1,
-    id: body.id,
-    whiteName: cleanCorrespondenceName(body.w, 'White'),
-    blackName: cleanCorrespondenceName(body.b, 'Black'),
-    localColor: body.to,
-    moves: body.m.slice(),
-    result: body.r || '*',
-    lastSharedPly: -1,
-    updatedAt: Date.now()
-  };
-
-  const stored = loadStoredCorrespondenceGame(incoming.id);
-  let gameToLoad = incoming;
-
-  if (stored) {
-    const storedMoves = Array.isArray(stored.moves) ? stored.moves : [];
-
-    if (!historiesShareOneLine(storedMoves, incoming.moves)) {
-      throw new Error('This link conflicts with the locally saved version of the same game. Nothing was overwritten.');
-    }
-
-    if (storedMoves.length > incoming.moves.length) {
-      gameToLoad = stored;
-      correspondenceMessage = 'That was an older link. Your newer local copy was kept.';
-    } else {
-      incoming.localColor = stored.localColor || incoming.localColor;
-      incoming.lastSharedPly = Number.isInteger(stored.lastSharedPly)
-        ? stored.lastSharedPly
-        : -1;
-      correspondenceMessage = storedMoves.length === incoming.moves.length
-        ? 'This link matches your saved game.'
-        : 'Opponent move received. Your local board is now up to date.';
-    }
-  } else {
-    correspondenceMessage = incoming.moves.length
-      ? 'Message game received. The complete move history was verified.'
-      : 'Invitation received. The game is ready.';
-  }
-
-  try {
-    replayCorrespondenceGame(gameToLoad);
-  } catch (error) {
-    restoreCorrespondenceBoardSnapshot(boardSnapshot);
-    throw error;
-  }
-
-  correspondenceGame = gameToLoad;
-  saveCorrespondenceGame();
-  updateCorrespondencePanel();
-}
-
-function importCorrespondenceLink(linkValue, showErrors = true) {
-  try {
-    const body = parseCorrespondenceLink(linkValue);
-    acceptCorrespondenceBody(body);
-    return true;
-  } catch (error) {
-    console.warn('Could not import message game:', error);
-    correspondenceMessage = error.message || 'The game link could not be opened.';
-    updateCorrespondencePanel();
-
-    if (showErrors) alert(correspondenceMessage);
-    return false;
-  }
-}
-
-function importPastedCorrespondenceLink() {
-  const input = document.getElementById('correspondencePasteInput');
-  if (input) importCorrespondenceLink(input.value);
-}
-
-function restoreActiveCorrespondenceGame() {
-  const activeId = localStorage.getItem('khonsChessActiveMessageGame');
-  if (!activeId) return false;
-
-  const stored = loadStoredCorrespondenceGame(activeId);
-  if (!stored || !Array.isArray(stored.moves)) return false;
-
-  try {
-    replayCorrespondenceGame(stored);
-    correspondenceGame = stored;
-    correspondenceMessage = 'Saved message game restored on this device.';
-    updateCorrespondencePanel();
-    return true;
-  } catch (error) {
-    console.warn('Could not restore message game:', error);
-    return false;
-  }
-}
-
-function startCorrespondenceGame() {
-  const yourNameInput = document.getElementById('correspondenceYourName');
-  const opponentNameInput = document.getElementById('correspondenceOpponentName');
-  const colorSelect = document.getElementById('correspondenceColor');
-
-  let localColor = colorSelect ? colorSelect.value : 'white';
-  if (localColor === 'random') {
-    localColor = Math.random() < 0.5 ? 'white' : 'black';
-  }
-
-  const yourName = cleanCorrespondenceName(yourNameInput?.value, 'Player 1');
-  const opponentName = cleanCorrespondenceName(opponentNameInput?.value, 'Player 2');
-
-  currentGame = 'chess';
-  const gameSelect = document.getElementById('gameSelect');
-  if (gameSelect) gameSelect.value = 'chess';
-
-  hardResetForCurrentGame();
-  stopComputerForPGNImport();
-  pauseChessClock();
-
-  correspondenceGame = {
-    version: 1,
-    id: makeCorrespondenceId(),
-    whiteName: localColor === 'white' ? yourName : opponentName,
-    blackName: localColor === 'black' ? yourName : opponentName,
-    localColor,
-    moves: [],
-    result: '*',
-    lastSharedPly: -1,
-    updatedAt: Date.now()
-  };
-
-  correspondenceMessage = localColor === 'white'
-    ? 'You have White. Make the first move, then send the new link.'
-    : 'Your opponent has White. Send the invitation link now.';
-
-  saveCorrespondenceGame();
-  updateCorrespondencePanel();
-  updateStatusBar();
-}
-
-function syncCorrespondenceAfterMove() {
-  if (!correspondenceGame || correspondenceApplying) return;
-
-  correspondenceGame.moves = moveHistoryToUCI();
-  correspondenceMessage = 'Move recorded. Send the new game link to your opponent.';
-  saveCorrespondenceGame();
-  updateCorrespondencePanel();
-}
-
-function leaveCorrespondenceGame() {
-  if (!correspondenceGame) return;
-
-  if (!confirm('Leave this message game on this device? The links already sent will still work.')) {
-    return;
-  }
-
-  localStorage.removeItem('khonsChessActiveMessageGame');
-  correspondenceGame = null;
-  correspondenceMessage = '';
-  updateCorrespondencePanel();
-  updateStatusBar();
-}
-
-function updateCorrespondencePanel() {
-  const panel = document.getElementById('correspondencePanel');
-  const setup = document.getElementById('correspondenceSetup');
-  const active = document.getElementById('correspondenceActive');
-  const status = document.getElementById('correspondenceStatus');
-  const note = document.getElementById('correspondenceNote');
-  const shareButton = document.getElementById('correspondenceShareButton');
-
-  if (!panel || !setup || !active) return;
-
-  panel.style.display = currentGame === 'chess' ? 'block' : 'none';
-  setup.hidden = Boolean(correspondenceGame);
-  active.hidden = !correspondenceGame;
-
-  if (!correspondenceGame) return;
-
-  const localName = correspondenceGame.localColor === 'white'
-    ? correspondenceGame.whiteName
-    : correspondenceGame.blackName;
-  const opponentName = correspondenceGame.localColor === 'white'
-    ? correspondenceGame.blackName
-    : correspondenceGame.whiteName;
-  const isLocalTurn = correspondenceGame.localColor === currentPlayer;
-  const moves = moveHistoryToUCI();
-
-  if (status) {
-    status.textContent =
-      `${correspondenceGame.whiteName} (White) vs. ${correspondenceGame.blackName} (Black) · ` +
-      `Game ${correspondenceGame.id}\n` +
-      `You are ${localName}, playing ${correspondenceGame.localColor}. ` +
-      (gameResult !== '*'
-        ? `Game complete: ${gameResult}.`
-        : isLocalTurn
-          ? 'It is your turn.'
-          : `Waiting for ${opponentName}.`);
-    status.style.whiteSpace = 'pre-line';
-  }
-
-  if (shareButton) {
-    shareButton.textContent = moves.length
-      ? 'Send / Share Game'
-      : 'Send Invitation';
-  }
-
-  if (note) {
-    let noteText = correspondenceMessage;
-
-    if (!noteText && moves.length > correspondenceGame.lastSharedPly) {
-      noteText = 'This version has not been shared yet.';
-    }
-
-    note.textContent = noteText;
-  }
-}
-
 function parseUCIMove(uciMove) {
   if (!uciMove || uciMove.length < 4) return null;
 
@@ -2699,12 +1879,10 @@ const movingColor =
 
   moveHistory.push(move);
 
-currentPlayer =
+  currentPlayer =
   currentPlayer === 'white'
     ? 'black'
     : 'white';
-
-syncCorrespondenceAfterMove();
 
 selectedSquare = null;
 legalMoves = [];
@@ -2843,12 +2021,6 @@ function hardResetForCurrentGame() {
     stopPGNPlayback();
     pauseChessClock();
     cancelPendingComputerMove();
-
-  if (correspondenceGame && !correspondenceApplying) {
-    localStorage.removeItem('khonsChessActiveMessageGame');
-    correspondenceGame = null;
-    correspondenceMessage = '';
-  }
 
   pgnPlaybackMoves = [];
   pgnPlaybackMoveIndex = 0;
@@ -3355,7 +2527,6 @@ function updateStatusBar() {
     statusBar.style.color = '#0f0';
   }
   updateGameActionButtons();
-  updateCorrespondencePanel();
 }
 
 function drawBoard() {
@@ -3538,17 +2709,6 @@ function handleSquareClick(e) {
   ) {
     return;
   }
-
-  if (
-    currentGame === 'chess' &&
-    correspondenceGame &&
-    correspondenceGame.localColor !== currentPlayer
-  ) {
-    correspondenceMessage = 'This is your opponent\'s turn. Open their next link when it arrives.';
-    updateCorrespondencePanel();
-    return;
-  }
-
   const row = parseInt(e.currentTarget.dataset.row);
   const col = parseInt(e.currentTarget.dataset.col);
   const clickedPiece = gameState[row][col];
@@ -7051,12 +6211,6 @@ document.getElementById('gameSelect').addEventListener('change', (e) => {
   if (newGame === currentGame) return;
 
   if (confirm(`Switch to ${newGame}? This will reset the board for that game.`)) {
-    if (correspondenceGame && newGame !== 'chess') {
-      localStorage.removeItem('khonsChessActiveMessageGame');
-      correspondenceGame = null;
-      correspondenceMessage = '';
-    }
-
     currentGame = newGame;
     setURLParam('game', newGame);
 
@@ -7254,12 +6408,6 @@ document
   .getElementById('pgnFileInput')
   .addEventListener('change', handlePGNFileUpload);
 
-window.addEventListener('hashchange', () => {
-  if (window.location.hash.startsWith('#khon=')) {
-    importCorrespondenceLink(window.location.href, true);
-  }
-});
-
 // Apply URL overrides first, then load for that game
 applyGameFromURL();
 applyThemeFromURL();
@@ -7279,12 +6427,6 @@ loadClockSettings();
 loadComputerSettings();
 loadGame();
 
-if (window.location.hash.startsWith('#khon=')) {
-  importCorrespondenceLink(window.location.href, true);
-} else {
-  restoreActiveCorrespondenceGame();
-}
-
 restoreImportedPGNPlaylist();
 
 updatePlayerSideIndicator();
@@ -7293,15 +6435,14 @@ updateGameActionButtons();
 
 if (
   computerEnabled &&
-  currentGame === 'chess' &&
-  !correspondenceGame
+  currentGame === 'chess'
 ) {
   initializeChessEngine();
 }
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.2.0 (Play by Message)
+  Version 3.1.4 (Custom Board Colors)
 </div>
 
 </body>
