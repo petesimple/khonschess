@@ -1055,6 +1055,21 @@ body {
           aria-live="polite"
         ></div>
 
+        <label style="display: block; margin-top: 10px; color: #ddd; font-size: 0.85em;">
+          Message attitude
+          <select
+            id="correspondenceMessageTone"
+            onchange="setCorrespondenceMessageTone(this.value)"
+            style="width: 100%; min-height: 40px; margin-top: 4px; padding: 8px; box-sizing: border-box; background: #292929; color: #fff; border: 1px solid #777; border-radius: 6px; font-family: monospace;"
+          >
+            <option value="funny" selected>Funny</option>
+            <option value="serious">Serious</option>
+            <option value="playful">Playful</option>
+            <option value="trash">Trash Talk</option>
+            <option value="none">No Message</option>
+          </select>
+        </label>
+
         <div class="correspondence-actions">
           <button
             id="correspondenceShareButton"
@@ -1066,10 +1081,11 @@ body {
           </button>
 
           <button
+            id="correspondenceCopyButton"
             type="button"
             onclick="copyCorrespondenceLink()"
           >
-            Copy Game Link
+            Copy Message + Link
           </button>
 
           <button
@@ -1785,6 +1801,7 @@ let correspondenceApplying = false;
 let correspondenceMessage = '';
 let correspondenceFeatureEnabled = false;
 let correspondencePreviousComputerEnabled = true;
+let correspondenceMessageTone = 'funny';
 
 let gameEndReason = '';
 
@@ -2492,8 +2509,206 @@ function buildCorrespondenceURL() {
   return url.toString();
 }
 
+function getCorrespondenceSANAtPly(plyIndex) {
+  const pair = pgnMoves[Math.floor(plyIndex / 2)];
+  if (!pair) return '';
+  return plyIndex % 2 === 0 ? pair[0] : pair[1];
+}
+
+function getNumberedCorrespondenceMove(plyIndex) {
+  const san = getCorrespondenceSANAtPly(plyIndex);
+  if (!san) return '';
+
+  const moveNumber = Math.floor(plyIndex / 2) + 1;
+  return plyIndex % 2 === 0
+    ? `${moveNumber}. ${san}`
+    : `${moveNumber}... ${san}`;
+}
+
+function getCorrespondencePieceName(pieceType) {
+  const names = {
+    P: 'pawn',
+    N: 'knight',
+    B: 'bishop',
+    R: 'rook',
+    Q: 'queen',
+    K: 'king'
+  };
+
+  return names[pieceType] || 'piece';
+}
+
+function getCorrespondenceSquare(row, col) {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  return files[col] + String(8 - row);
+}
+
+function getCorrespondenceCheckEnding(san) {
+  if (san && san.endsWith('#')) return ' and delivering checkmate';
+  if (san && san.endsWith('+')) return ' and giving check';
+  return '';
+}
+
+function getCorrespondenceActionReplay() {
+  if (!correspondenceGame || !moveHistory.length) return '';
+
+  const latestIndex = moveHistory.length - 1;
+  const latestMove = moveHistory[latestIndex];
+  const latestSAN = getCorrespondenceSANAtPly(latestIndex);
+  const numberedLatest =
+    getNumberedCorrespondenceMove(latestIndex) || latestSAN;
+  const destination = getCorrespondenceSquare(
+    latestMove.toRow,
+    latestMove.toCol
+  );
+  const senderName =
+    latestMove.piece.color === 'white'
+      ? correspondenceGame.whiteName
+      : correspondenceGame.blackName;
+  const checkEnding = getCorrespondenceCheckEnding(latestSAN);
+
+  if (latestMove.capture && latestIndex > 0) {
+    const previousMove = moveHistory[latestIndex - 1];
+    const sameDestination =
+      previousMove.toRow === latestMove.toRow &&
+      previousMove.toCol === latestMove.toCol;
+
+    if (sameDestination && previousMove.capture) {
+      const opponentName =
+        previousMove.piece.color === 'white'
+          ? correspondenceGame.whiteName
+          : correspondenceGame.blackName;
+      const numberedPrevious =
+        getNumberedCorrespondenceMove(latestIndex - 1);
+
+      return (
+        `${senderName} answered ${opponentName}'s ${numberedPrevious} ` +
+        `with ${numberedLatest}, recapturing the ` +
+        `${getCorrespondencePieceName(latestMove.capture.type)} on ` +
+        `${destination}${checkEnding}.`
+      );
+    }
+  }
+
+  if (latestMove.capture) {
+    return (
+      `${senderName} played ${numberedLatest}, capturing the ` +
+      `${getCorrespondencePieceName(latestMove.capture.type)} on ` +
+      `${destination}${checkEnding}.`
+    );
+  }
+
+  if (latestMove.castle) {
+    const side = latestMove.castle === 'K' ? 'kingside' : 'queenside';
+    return `${senderName} played ${numberedLatest} and castled ${side}${checkEnding}.`;
+  }
+
+  if (latestMove.promotion) {
+    return (
+      `${senderName} played ${numberedLatest}, promoting the pawn to a ` +
+      `${getCorrespondencePieceName(latestMove.promotion)}${checkEnding}.`
+    );
+  }
+
+  return (
+    `${senderName} played ${numberedLatest}, moving the ` +
+    `${getCorrespondencePieceName(latestMove.piece.type)} to ` +
+    `${destination}${checkEnding}.`
+  );
+}
+
+function setCorrespondenceMessageTone(value) {
+  const allowedTones = ['funny', 'serious', 'playful', 'trash', 'none'];
+  correspondenceMessageTone = allowedTones.includes(value)
+    ? value
+    : 'funny';
+
+  localStorage.setItem(
+    'khonsChessMessageTone',
+    correspondenceMessageTone
+  );
+
+  const select = document.getElementById('correspondenceMessageTone');
+  if (select) select.value = correspondenceMessageTone;
+
+  const copyButton = document.getElementById('correspondenceCopyButton');
+  if (copyButton) {
+    copyButton.textContent = correspondenceMessageTone === 'none'
+      ? 'Copy Game Link'
+      : 'Copy Message + Link';
+  }
+}
+
+function loadCorrespondenceMessageTone() {
+  const savedTone = localStorage.getItem('khonsChessMessageTone');
+  setCorrespondenceMessageTone(savedTone || 'funny');
+}
+
+function getCorrespondenceInvitationMessage(
+  recipientName,
+  senderName,
+  recipientColor
+) {
+  if (correspondenceMessageTone === 'serious') {
+    return (
+      `${recipientName}, ${senderName} invited you to a Khon's Chess ` +
+      `message game. You are playing ${recipientColor}. Open the link to begin.`
+    );
+  }
+
+  if (correspondenceMessageTone === 'playful') {
+    return (
+      `${recipientName}, ${senderName} has invited you to a friendly game of ` +
+      `Khon's Chess. You are playing ${recipientColor}. The pieces are ready!`
+    );
+  }
+
+  if (correspondenceMessageTone === 'trash') {
+    return (
+      `${recipientName}, ${senderName} has challenged you to Khon's Chess. ` +
+      `You are playing ${recipientColor}. Your king has been warned.`
+    );
+  }
+
+  return (
+    `${recipientName}, ${senderName} has mailed you a chess problem disguised ` +
+    `as an invitation. You are playing ${recipientColor}. Open the link and ` +
+    `begin the paperwork.`
+  );
+}
+
+function getCorrespondenceMoveMessage(recipientName, replay) {
+  if (correspondenceMessageTone === 'serious') {
+    return (
+      `${recipientName},\n\nGame update: ${replay}\n\n` +
+      `It is your turn in Khon's Chess.`
+    );
+  }
+
+  if (correspondenceMessageTone === 'playful') {
+    return (
+      `${recipientName},\n\nBoard update: ${replay}\n\n` +
+      `The pieces are waiting. Your move!`
+    );
+  }
+
+  if (correspondenceMessageTone === 'trash') {
+    return (
+      `${recipientName},\n\nScoreboard update: ${replay}\n\n` +
+      `The board is waiting for your answer. Try not to embarrass your king.`
+    );
+  }
+
+  return (
+    `${recipientName},\n\nWhat just happened: ${replay}\n\n` +
+    `The tiny digital chess courier has delivered the consequences. ` +
+    `It's your turn in Khon's Chess.`
+  );
+}
+
 function correspondenceShareText() {
   if (!correspondenceGame) return '';
+  if (correspondenceMessageTone === 'none') return '';
 
   const recipientName =
     currentPlayer === 'white'
@@ -2508,17 +2723,15 @@ function correspondenceShareText() {
   const moves = moveHistoryToUCI();
 
   if (!moves.length) {
-    return `${senderName} invited you to play ${currentPlayer} in Khon's Chess. Open the link to begin.`;
+    return getCorrespondenceInvitationMessage(
+      recipientName,
+      senderName,
+      currentPlayer
+    );
   }
 
-  let lastMove = moves[moves.length - 1];
-  const pair = pgnMoves[Math.floor((moves.length - 1) / 2)];
-
-  if (pair) {
-    lastMove = moves.length % 2 === 1 ? pair[0] : pair[1];
-  }
-
-  return `${recipientName}, ${senderName} played ${lastMove || moves[moves.length - 1]}. It's your turn in Khon's Chess.`;
+  const replay = getCorrespondenceActionReplay();
+  return getCorrespondenceMoveMessage(recipientName, replay);
 }
 
 async function copyTextToClipboard(textValue) {
@@ -2542,18 +2755,20 @@ async function shareCorrespondenceGame() {
 
   const url = buildCorrespondenceURL();
   const text = correspondenceShareText();
+  const shareContent = text ? `${text}\n\n${url}` : url;
 
   try {
     if (navigator.share) {
       await navigator.share({
         title: "Khon's Chess message game",
-        text,
-        url
+        text: shareContent
       });
       correspondenceMessage = 'Game shared. Keep this local copy while you wait for the reply.';
     } else {
-      await copyTextToClipboard(`${text}\n\n${url}`);
-      correspondenceMessage = 'Message and game link copied. Paste them into a text message.';
+      await copyTextToClipboard(shareContent);
+      correspondenceMessage = text
+        ? 'Message and game link copied. Paste them into a text message.'
+        : 'Game link copied. Paste it into a message.';
     }
 
     correspondenceGame.lastSharedPly = moveHistory.length;
@@ -2571,9 +2786,14 @@ async function copyCorrespondenceLink() {
   if (!correspondenceGame) return;
 
   try {
-    await copyTextToClipboard(buildCorrespondenceURL());
+    const message = correspondenceShareText();
+    const url = buildCorrespondenceURL();
+    const copyContent = message ? `${message}\n\n${url}` : url;
+    await copyTextToClipboard(copyContent);
     correspondenceGame.lastSharedPly = moveHistory.length;
-    correspondenceMessage = 'Game link copied. Paste it into a message to your opponent.';
+    correspondenceMessage = message
+      ? 'Replay message and game link copied. Paste them into a message to your opponent.'
+      : 'Game link copied. Paste it into a message to your opponent.';
     saveCorrespondenceGame();
   } catch (error) {
     correspondenceMessage = 'The link could not be copied automatically.';
@@ -3001,6 +3221,8 @@ function updateCorrespondencePanel() {
   const status = document.getElementById('correspondenceStatus');
   const note = document.getElementById('correspondenceNote');
   const shareButton = document.getElementById('correspondenceShareButton');
+  const toneSelect = document.getElementById('correspondenceMessageTone');
+  const copyButton = document.getElementById('correspondenceCopyButton');
 
   if (!panel || !setup || !active) return;
 
@@ -3012,6 +3234,16 @@ function updateCorrespondencePanel() {
       : 'none';
   setup.hidden = Boolean(correspondenceGame);
   active.hidden = !correspondenceGame;
+
+  if (toneSelect) {
+    toneSelect.value = correspondenceMessageTone;
+  }
+
+  if (copyButton) {
+    copyButton.textContent = correspondenceMessageTone === 'none'
+      ? 'Copy Game Link'
+      : 'Copy Message + Link';
+  }
 
   if (!correspondenceGame) return;
 
@@ -7854,6 +8086,7 @@ loadClockSettings();
   the actual side assigned to that game.
 */
 loadComputerSettings();
+loadCorrespondenceMessageTone();
 loadGame();
 
 if (window.location.hash.startsWith('#khon=')) {
@@ -7876,7 +8109,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.3.0 (Message Game Library)
+  Version 3.3.1 (Toned Move Replay Messages)
 </div>
 
 </body>
