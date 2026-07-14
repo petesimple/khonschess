@@ -2450,13 +2450,25 @@ function acceptCorrespondenceBody(body) {
       gameToLoad = stored;
       correspondenceMessage = 'That was an older link. Your newer local copy was kept.';
     } else {
-      incoming.localColor = stored.localColor || incoming.localColor;
-      incoming.lastSharedPly = Number.isInteger(stored.lastSharedPly)
-        ? stored.lastSharedPly
-        : -1;
-      correspondenceMessage = storedMoves.length === incoming.moves.length
-        ? 'This link matches your saved game.'
-        : 'Opponent move received. Your local board is now up to date.';
+      const storedRoleDiffers =
+        stored.localColor &&
+        stored.localColor !== incoming.localColor;
+
+      incoming.lastSharedPly =
+        !storedRoleDiffers && Number.isInteger(stored.lastSharedPly)
+          ? stored.lastSharedPly
+          : -1;
+
+      const recipientName =
+        incoming.localColor === 'white'
+          ? incoming.whiteName
+          : incoming.blackName;
+
+      correspondenceMessage = storedRoleDiffers
+        ? `This link is addressed to ${recipientName}, playing ${incoming.localColor}. Player role updated.`
+        : storedMoves.length === incoming.moves.length
+          ? 'This link matches your saved game.'
+          : 'Opponent move received. Your local board is now up to date.';
     }
   } else {
     correspondenceMessage = incoming.moves.length
@@ -7458,7 +7470,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.2.2 (Accordion Settings)
+  Version 3.2.3 (Message Turn Fix)
 </div>
 
 </body>
