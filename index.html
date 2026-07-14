@@ -448,6 +448,70 @@ body {
   font-size: 0.8em;
 }
 
+.correspondence-library {
+  margin-bottom: 14px;
+  padding: 10px;
+  background: #10181c;
+  border: 1px solid #46636b;
+  border-radius: 8px;
+}
+
+.correspondence-library-title {
+  margin-bottom: 8px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.correspondence-library select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #292929;
+  color: #fff;
+  border: 1px solid #777;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.correspondence-game-preview {
+  min-height: 18px;
+  margin-top: 8px;
+  color: #bbb;
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+
+.correspondence-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.correspondence-stat {
+  padding: 8px 4px;
+  background: #202a2e;
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 0.72em;
+  text-align: center;
+}
+
+.correspondence-stat strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #0ff;
+  font-size: 1.35em;
+}
+
+.correspondence-stats-note {
+  margin-top: 6px;
+  color: #888;
+  font-size: 0.7em;
+  text-align: center;
+}
+
 @media (max-width: 420px) {
   .correspondence-grid {
     grid-template-columns: 1fr;
@@ -840,6 +904,79 @@ body {
       style="display: none;"
     >
       <h2 id="correspondenceTitle">✉️ Play by Message</h2>
+
+      <div
+        id="correspondenceLibrary"
+        class="correspondence-library"
+      >
+        <div class="correspondence-library-title">
+          My Message Games
+        </div>
+
+        <select
+          id="correspondenceGameSelect"
+          onchange="previewSelectedCorrespondenceGame()"
+          aria-label="Saved message games"
+        >
+          <option value="">No saved message games</option>
+        </select>
+
+        <div
+          id="correspondenceGamePreview"
+          class="correspondence-game-preview"
+        >
+          Start a game or open a received link.
+        </div>
+
+        <div class="correspondence-actions">
+          <button
+            id="correspondenceOpenGameButton"
+            type="button"
+            onclick="loadSelectedCorrespondenceGame()"
+            disabled
+          >
+            Open Selected Game
+          </button>
+
+          <button
+            id="correspondenceRemoveGameButton"
+            type="button"
+            class="danger"
+            onclick="removeSelectedCorrespondenceGame()"
+            disabled
+          >
+            Remove from Device
+          </button>
+        </div>
+
+        <div
+          id="correspondenceStats"
+          class="correspondence-stats"
+          aria-label="Message game statistics"
+        >
+          <div class="correspondence-stat">
+            <strong id="correspondenceWins">0%</strong>
+            Wins <span id="correspondenceWinCount">0</span>
+          </div>
+
+          <div class="correspondence-stat">
+            <strong id="correspondenceLosses">0%</strong>
+            Losses <span id="correspondenceLossCount">0</span>
+          </div>
+
+          <div class="correspondence-stat">
+            <strong id="correspondenceDraws">0%</strong>
+            Draws <span id="correspondenceDrawCount">0</span>
+          </div>
+        </div>
+
+        <div
+          id="correspondenceStatsNote"
+          class="correspondence-stats-note"
+        >
+          No completed message games on this device
+        </div>
+      </div>
 
       <div id="correspondenceSetup">
         <p>
@@ -2057,6 +2194,8 @@ function saveCorrespondenceGame() {
     'khonsChessActiveMessageGame',
     correspondenceGame.id
   );
+
+  updateCorrespondenceLibrary();
 }
 
 function loadStoredCorrespondenceGame(id) {
@@ -2067,6 +2206,260 @@ function loadStoredCorrespondenceGame(id) {
     console.warn('Could not read message game:', error);
     return null;
   }
+}
+
+function listStoredCorrespondenceGames() {
+  const prefix = 'khonsChessMessageGame_';
+  const games = [];
+
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index);
+
+    if (!key || !key.startsWith(prefix)) continue;
+
+    try {
+      const game = JSON.parse(localStorage.getItem(key));
+
+      if (
+        game &&
+        game.id &&
+        Array.isArray(game.moves) &&
+        ['white', 'black'].includes(game.localColor)
+      ) {
+        games.push(game);
+      }
+    } catch (error) {
+      console.warn('Skipped unreadable message game:', key, error);
+    }
+  }
+
+  return games.sort((first, second) =>
+    Number(second.updatedAt || 0) - Number(first.updatedAt || 0)
+  );
+}
+
+function getCorrespondenceTurn(game) {
+  return game.moves.length % 2 === 0 ? 'white' : 'black';
+}
+
+function getCorrespondenceOpponentName(game) {
+  return game.localColor === 'white'
+    ? game.blackName
+    : game.whiteName;
+}
+
+function getCorrespondenceOutcome(game) {
+  if (game.result === '1/2-1/2') return 'draw';
+
+  if (game.result === '1-0') {
+    return game.localColor === 'white' ? 'win' : 'loss';
+  }
+
+  if (game.result === '0-1') {
+    return game.localColor === 'black' ? 'win' : 'loss';
+  }
+
+  return null;
+}
+
+function getCorrespondenceLibraryGroup(game) {
+  if (getCorrespondenceOutcome(game)) return 'Finished Games';
+
+  return getCorrespondenceTurn(game) === game.localColor
+    ? 'Your Turn'
+    : 'Waiting for Opponent';
+}
+
+function getCorrespondenceLibraryLabel(game) {
+  const opponent = cleanCorrespondenceName(
+    getCorrespondenceOpponentName(game),
+    'Opponent'
+  );
+  const color = game.localColor === 'white' ? 'White' : 'Black';
+  const outcome = getCorrespondenceOutcome(game);
+
+  let status = 'Waiting';
+
+  if (outcome === 'win') status = 'Won';
+  if (outcome === 'loss') status = 'Lost';
+  if (outcome === 'draw') status = 'Draw';
+
+  if (!outcome && getCorrespondenceTurn(game) === game.localColor) {
+    status = 'Your turn';
+  }
+
+  return `${opponent} · ${color} · ${status} · ${game.moves.length} half-moves`;
+}
+
+function updateCorrespondenceStatistics(games) {
+  const outcomes = games
+    .map(getCorrespondenceOutcome)
+    .filter(Boolean);
+  const completed = outcomes.length;
+  const wins = outcomes.filter(outcome => outcome === 'win').length;
+  const losses = outcomes.filter(outcome => outcome === 'loss').length;
+  const draws = outcomes.filter(outcome => outcome === 'draw').length;
+
+  const percentage = value =>
+    completed ? `${Math.round(value / completed * 100)}%` : '0%';
+
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+
+  setText('correspondenceWins', percentage(wins));
+  setText('correspondenceLosses', percentage(losses));
+  setText('correspondenceDraws', percentage(draws));
+  setText('correspondenceWinCount', String(wins));
+  setText('correspondenceLossCount', String(losses));
+  setText('correspondenceDrawCount', String(draws));
+  setText(
+    'correspondenceStatsNote',
+    completed
+      ? `${completed} completed message game${completed === 1 ? '' : 's'} on this device`
+      : 'No completed message games on this device'
+  );
+}
+
+function updateCorrespondenceLibrary() {
+  const select = document.getElementById('correspondenceGameSelect');
+  const openButton = document.getElementById('correspondenceOpenGameButton');
+  const removeButton = document.getElementById('correspondenceRemoveGameButton');
+
+  if (!select) return;
+
+  const previousSelection = select.value;
+  const games = listStoredCorrespondenceGames();
+  const preferredId =
+    correspondenceGame?.id || previousSelection || '';
+
+  select.innerHTML = '';
+
+  if (!games.length) {
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'No saved message games';
+    select.appendChild(emptyOption);
+  } else {
+    const groupNames = [
+      'Your Turn',
+      'Waiting for Opponent',
+      'Finished Games'
+    ];
+
+    groupNames.forEach(groupName => {
+      const groupGames = games.filter(
+        game => getCorrespondenceLibraryGroup(game) === groupName
+      );
+
+      if (!groupGames.length) return;
+
+      const group = document.createElement('optgroup');
+      group.label = groupName;
+
+      groupGames.forEach(game => {
+        const option = document.createElement('option');
+        option.value = game.id;
+        option.textContent = getCorrespondenceLibraryLabel(game);
+        group.appendChild(option);
+      });
+
+      select.appendChild(group);
+    });
+
+    if (games.some(game => game.id === preferredId)) {
+      select.value = preferredId;
+    } else {
+      select.value = games[0].id;
+    }
+  }
+
+  const hasSelection = Boolean(select.value);
+  if (openButton) openButton.disabled = !hasSelection;
+  if (removeButton) removeButton.disabled = !hasSelection;
+
+  updateCorrespondenceStatistics(games);
+  previewSelectedCorrespondenceGame();
+}
+
+function previewSelectedCorrespondenceGame() {
+  const select = document.getElementById('correspondenceGameSelect');
+  const preview = document.getElementById('correspondenceGamePreview');
+
+  if (!select || !preview) return;
+
+  const game = loadStoredCorrespondenceGame(select.value);
+
+  if (!game) {
+    preview.textContent = 'Start a game or open a received link.';
+    return;
+  }
+
+  const group = getCorrespondenceLibraryGroup(game);
+  const opponent = cleanCorrespondenceName(
+    getCorrespondenceOpponentName(game),
+    'Opponent'
+  );
+  const updated = game.updatedAt
+    ? new Date(game.updatedAt).toLocaleString()
+    : 'Unknown';
+
+  preview.textContent =
+    `Game ${game.id} against ${opponent}. ${group}. ` +
+    `${game.moves.length} half-moves. Updated ${updated}.`;
+}
+
+function loadSelectedCorrespondenceGame() {
+  const select = document.getElementById('correspondenceGameSelect');
+  if (!select || !select.value) return;
+
+  const stored = loadStoredCorrespondenceGame(select.value);
+  if (!stored) {
+    correspondenceMessage = 'That saved game could not be opened.';
+    updateCorrespondencePanel();
+    return;
+  }
+
+  try {
+    replayCorrespondenceGame(stored);
+    correspondenceGame = stored;
+    correspondenceMessage = 'Saved message game opened.';
+    localStorage.setItem('khonsChessActiveMessageGame', stored.id);
+    updateCorrespondencePanel();
+    updateStatusBar();
+  } catch (error) {
+    correspondenceMessage = error.message || 'That game could not be replayed.';
+    updateCorrespondencePanel();
+  }
+}
+
+function removeSelectedCorrespondenceGame() {
+  const select = document.getElementById('correspondenceGameSelect');
+  if (!select || !select.value) return;
+
+  const stored = loadStoredCorrespondenceGame(select.value);
+  const opponent = stored
+    ? cleanCorrespondenceName(getCorrespondenceOpponentName(stored), 'Opponent')
+    : 'this opponent';
+
+  if (!confirm(`Remove the saved game against ${opponent} from this device?`)) {
+    return;
+  }
+
+  const removedId = select.value;
+  localStorage.removeItem(correspondenceStorageKey(removedId));
+
+  if (correspondenceGame?.id === removedId) {
+    localStorage.removeItem('khonsChessActiveMessageGame');
+    correspondenceGame = null;
+    correspondenceMessage = '';
+    restoreComputerAfterCorrespondence();
+    hardResetForCurrentGame();
+  }
+
+  updateCorrespondenceLibrary();
+  updateCorrespondencePanel();
 }
 
 function getCorrespondencePayload() {
@@ -2373,6 +2766,13 @@ function replayCorrespondenceGame(gameToLoad) {
         throw new Error(`The received move ${uciMove} is illegal.`);
       }
     }
+
+    if (
+      gameResult === '*' &&
+      ['1-0', '0-1', '1/2-1/2'].includes(gameToLoad.result)
+    ) {
+      gameResult = gameToLoad.result;
+    }
   } finally {
     importingPGN = false;
     correspondenceApplying = false;
@@ -2603,6 +3003,8 @@ function updateCorrespondencePanel() {
   const shareButton = document.getElementById('correspondenceShareButton');
 
   if (!panel || !setup || !active) return;
+
+  updateCorrespondenceLibrary();
 
   panel.style.display =
     currentGame === 'chess' && correspondenceFeatureEnabled
@@ -2883,6 +3285,9 @@ handleClockAfterMove(
 );
 
 checkForWin();
+  if (correspondenceGame && !correspondenceApplying) {
+    saveCorrespondenceGame();
+  }
   saveGame();
   drawBoard();
   updateStatusBar();
@@ -3215,6 +3620,7 @@ function finishChessGame(
   legalMoves = [];
 
   saveGame();
+  saveCorrespondenceGame();
   drawBoard();
   updateStatusBar();
   updateGameActionButtons();
@@ -7470,7 +7876,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.2.3 (Message Turn Fix)
+  Version 3.3.0 (Message Game Library)
 </div>
 
 </body>
