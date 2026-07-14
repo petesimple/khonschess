@@ -1,9 +1,14 @@
 ♟️ Khon’s Chess, Checkers & Backgammon
 
-A pixel powered tabletop game collection featuring Chess, Checkers, and Backgammon, complete with themed pieces, local autosaves, offline play, deep links, and a computer opponent that is always suspiciously available for a rematch.
+A pixel powered tabletop game collection featuring Chess, Checkers, and Backgammon, complete with themed pieces, custom board colors, local autosaves, offline play, deep links, message based correspondence games, and a computer opponent that is always suspiciously available for a rematch.
 
 🎮 Play it here:
 https://petesimple.github.io/khonschess/
+
+Current release:
+v3.3.1 Toned Move Replay Messages
+
+https://github.com/petesimple/khonschess/releases/latest
 
 ⸻
 
@@ -16,6 +21,86 @@ No server connection is required.
 No grandmaster hiding inside the computer is required.
 
 Choose the computer player and put your chess strategy to the test. Because the opponent runs locally, computer matches remain available when the app is installed or used offline.
+
+Computer play remains the default chess mode. Play by Message is optional and can be enabled from Tools and Settings.
+
+⸻
+
+✉️ Play by Message
+
+Khon’s Chess includes a correspondence mode inspired by playing chess through the mail.
+
+No account is required.
+No game database is required.
+No central match server is required.
+
+After each move, the complete game history is encoded inside a shareable Khon’s Chess URL. Send the link through Messages, Messenger, email, or another app. The opponent opens it, makes a move, and sends the updated game back.
+
+Play by Message includes:
+
+* Complete move history inside every shared link
+* Automatic legal replay of received moves
+* Castling, en passant, promotion, check, and result reconstruction
+* Damaged link and illegal move rejection
+* Protection against older links replacing newer local games
+* Conflict detection when two histories no longer match
+* Automatic player and color assignment from the received link
+* Native device sharing
+* Copy Message and Link support
+* Local saving with no required backend
+
+The game data is stored in the URL fragment. Anyone who receives the link can open that copy of the game, so treat message game links like digital chess postcards.
+
+⸻
+
+📚 Message Game Library
+
+Multiple correspondence games can be stored on the same device.
+
+The My Message Games library organizes locally saved games into:
+
+* Your Turn
+* Waiting for Opponent
+* Finished Games
+
+Each entry shows the opponent, player color, status, move count, and last update time. Select a saved game to review it or continue playing without deleting the other games.
+
+Finished message games contribute to local statistics for:
+
+* Wins
+* Losses
+* Draws
+* Win percentage
+* Loss percentage
+* Draw percentage
+
+These records belong to the current browser and device. Clearing browser storage removes the local library and statistics.
+
+⸻
+
+💬 Move Replay Messages
+
+Shared game links can include a short explanation of the latest action.
+
+Khon’s Chess recognizes:
+
+* Ordinary moves
+* Captures
+* Recaptures
+* Castling
+* Promotion
+* Check
+* Checkmate
+
+Choose a message attitude before sharing:
+
+* Funny, the default
+* Serious
+* Playful
+* Trash Talk
+* No Message
+
+No Message shares only the playable game link. The selected attitude is remembered on the device.
 
 ⸻
 
@@ -79,16 +164,41 @@ Change the entire personality of the board with the theme selector.
 Included themes:
 
 * Classic
+* Competition
+* Poison Pawns
 * Firefly
 * Star Wars
 * Star Trek
+* Orville
 * 300
+* Cats vs Computers
+* Death and Taxes
 * Dracula vs Vampire Hunter
 * Samurai vs Vikings
 * Dinos vs Dino Ghosts
+* Wacky Inflatables vs Dino People
 * SFIFF
 
 Each theme includes custom pixel art pieces while preserving the same game rules underneath.
+
+⸻
+
+🖌️ Custom Board Colors
+
+Piece themes and board colors can be selected independently, making it easier to improve contrast or build a favorite combination.
+
+Built in board styles include:
+
+* Classic Gray
+* Walnut
+* Tournament Green
+* Tournament Blue
+* Midnight
+* Custom Colors
+
+Custom Colors provides editable light square, dark square, and border colors with live preview and hex color controls. A quick swap button reverses the square colors, and the Walnut reset restores the original Khon’s Chess board.
+
+Board choices persist between sessions, and legal move highlighting remains visible across the available styles.
 
 ⸻
 
@@ -102,6 +212,8 @@ That means:
 * Checkers progress does not overwrite Backgammon
 * Refreshing the page does not immediately destroy your brilliant strategy
 * Returning players can continue from their previous board position
+* Multiple Play by Message games can coexist in the local game library
+* Board preferences, message settings, and the selected replay tone persist between visits
 
 Saved games and settings are stored locally in the browser.
 
@@ -163,6 +275,10 @@ Chess matches can be downloaded in Portable Game Notation format.
 
 PGN files can be saved, shared, reviewed, or imported into compatible chess software.
 
+Message Game Links
+
+When Play by Message is enabled, Send or Share Game creates a message containing the latest move replay and the updated game link. Copy Game Link prepares the same content for pasting manually. Selecting No Message sends only the link.
+
 ⸻
 
 🚀 Getting Started
@@ -200,15 +316,25 @@ khonschess/
 ├── index.html
 ├── manifest.json
 ├── service-worker.js
+├── vendor/
+│   └── chess.js
+├── stockfish/
+│   └── stockfish-18-lite-single.js
 ├── pieces/
 │   ├── classic/
+│   ├── competition/
+│   ├── poisonpawns/
 │   ├── firefly/
 │   ├── starwars/
 │   ├── startrek/
+│   ├── orville/
 │   ├── 300/
+│   ├── catsvscomputers/
+│   ├── deathandtaxes/
 │   ├── dracula/
 │   ├── SamvsVik/
 │   ├── Dinos/
+│   ├── wacky/
 │   └── SFIFF/
 ├── kclogo.png
 ├── khonschess-qr.png
@@ -225,6 +351,8 @@ The exact file list may change as new themes, icons, and features are added.
 * HTML5
 * CSS3
 * Vanilla JavaScript
+* chess.js for PGN parsing and chess notation support
+* Stockfish 18 Lite for the local computer opponent
 * Browser local storage
 * Progressive Web App technology
 * No frameworks
@@ -295,6 +423,18 @@ Chess
 * Saved game restoration
 * PGN export
 
+Play by Message
+
+* New game creation and player color assignment
+* Share sheet and copied message links
+* Legal move replay from received links
+* Older link and conflicting history protection
+* Multiple saved games grouped by turn status
+* Finished game win, loss, draw, and percentage tracking
+* Funny, Serious, Playful, and Trash Talk replay tones
+* No Message link only sharing
+* Castling, promotion, capture, recapture, check, and checkmate summaries
+
 Checkers
 
 * Normal movement
@@ -317,6 +457,10 @@ App
 
 * Theme switching
 * Theme restoration after refresh
+* Built in board style switching
+* Custom light square, dark square, and border colors
+* Board color restoration after refresh
+* Tools and Settings accordion sections
 * Deep links
 * QR code display
 * Offline loading
