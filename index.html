@@ -985,35 +985,44 @@ body {
 
         <div class="correspondence-grid">
           <label>
-            Your name
+            Your name — you, on this device
             <input
               id="correspondenceYourName"
               type="text"
               maxlength="30"
               value="Player 1"
               autocomplete="name"
+              oninput="updateCorrespondenceSetupPreview()"
             >
           </label>
 
           <label>
-            Opponent's name
+            Opponent's name — person receiving the link
             <input
               id="correspondenceOpponentName"
               type="text"
               maxlength="30"
               value="Player 2"
+              oninput="updateCorrespondenceSetupPreview()"
             >
           </label>
 
           <label>
-            Your color
-            <select id="correspondenceColor">
-              <option value="white">White</option>
-              <option value="black">Black</option>
-              <option value="random">Random</option>
+            Who makes the first move?
+            <select id="correspondenceColor" onchange="updateCorrespondenceSetupPreview()">
+              <option value="white">I do — I am White</option>
+              <option value="black">My opponent — they are White</option>
+              <option value="random">Choose randomly and show me</option>
             </select>
           </label>
         </div>
+
+        <div
+          id="correspondenceSetupPreview"
+          class="correspondence-status"
+          style="margin-top: 14px;"
+          aria-live="polite"
+        ></div>
 
         <div class="correspondence-actions">
           <button
@@ -3163,6 +3172,30 @@ function acceptCorrespondenceBody(body) {
 function importCorrespondenceLink(linkValue, showErrors = true) {
   try {
     const body = parseCorrespondenceLink(linkValue);
+
+    if (!loadStoredCorrespondenceGame(body.id)) {
+      const recipientName = cleanCorrespondenceName(
+        body.to === 'white' ? body.w : body.b,
+        body.to === 'white' ? 'White' : 'Black'
+      );
+      const opponentName = cleanCorrespondenceName(
+        body.to === 'white' ? body.b : body.w,
+        body.to === 'white' ? 'Black' : 'White'
+      );
+      const identityConfirmed = confirm(
+        `Check your player assignment before opening this game:\n\n` +
+        `You: ${recipientName} (${body.to})\n` +
+        `Opponent: ${opponentName} (${body.to === 'white' ? 'black' : 'white'})\n\n` +
+        `Is this correct?`
+      );
+
+      if (!identityConfirmed) {
+        throw new Error(
+          'The player names appear to be reversed. Ask the sender to create a new game with the corrected names.'
+        );
+      }
+    }
+
     toggleCorrespondenceFeature(true, false);
     acceptCorrespondenceBody(body);
     return true;
@@ -3213,6 +3246,23 @@ function startCorrespondenceGame() {
   const yourName = cleanCorrespondenceName(yourNameInput?.value, 'Player 1');
   const opponentName = cleanCorrespondenceName(opponentNameInput?.value, 'Player 2');
 
+  if (yourName.toLowerCase() === opponentName.toLowerCase()) {
+    alert('Please use two different player names so each message link has a clear recipient.');
+    return;
+  }
+
+  const whiteName = localColor === 'white' ? yourName : opponentName;
+  const blackName = localColor === 'black' ? yourName : opponentName;
+  const nextStep = localColor === 'white'
+    ? `${yourName} will make the first move as White.`
+    : `${opponentName} will make the first move as White. Send the invitation before moving.`;
+
+  if (!confirm(
+    `Confirm message game players:\n\nWhite: ${whiteName}\nBlack: ${blackName}\n\n${nextStep}`
+  )) {
+    return;
+  }
+
   currentGame = 'chess';
   const gameSelect = document.getElementById('gameSelect');
   if (gameSelect) gameSelect.value = 'chess';
@@ -3224,8 +3274,8 @@ function startCorrespondenceGame() {
   correspondenceGame = {
     version: 1,
     id: makeCorrespondenceId(),
-    whiteName: localColor === 'white' ? yourName : opponentName,
-    blackName: localColor === 'black' ? yourName : opponentName,
+    whiteName,
+    blackName,
     localColor,
     moves: [],
     result: '*',
@@ -3240,6 +3290,33 @@ function startCorrespondenceGame() {
   saveCorrespondenceGame();
   updateCorrespondencePanel();
   updateStatusBar();
+}
+
+function updateCorrespondenceSetupPreview() {
+  const preview = document.getElementById('correspondenceSetupPreview');
+  if (!preview) return;
+
+  const yourName = cleanCorrespondenceName(
+    document.getElementById('correspondenceYourName')?.value,
+    'Player 1'
+  );
+  const opponentName = cleanCorrespondenceName(
+    document.getElementById('correspondenceOpponentName')?.value,
+    'Player 2'
+  );
+  const choice = document.getElementById('correspondenceColor')?.value || 'white';
+
+  if (choice === 'random') {
+    preview.textContent =
+      `The app will randomly assign White and Black. White always makes the first move. ` +
+      `The assignments will be shown before the game is created.`;
+    return;
+  }
+
+  const whiteName = choice === 'white' ? yourName : opponentName;
+  const blackName = choice === 'black' ? yourName : opponentName;
+  preview.textContent =
+    `White: ${whiteName} — moves first. Black: ${blackName} — waits for White's move.`;
 }
 
 function syncCorrespondenceAfterMove() {
@@ -8185,6 +8262,7 @@ loadClockSettings();
 */
 loadComputerSettings();
 loadCorrespondenceMessageTone();
+updateCorrespondenceSetupPreview();
 loadGame();
 
 if (window.location.hash.startsWith('#khon=')) {
@@ -8207,7 +8285,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.3.2 (Message Game End Actions)
+  Version 3.3.3 (Clear Message Game Setup)
 </div>
 
 </body>
