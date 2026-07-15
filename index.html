@@ -2200,6 +2200,7 @@ function saveCorrespondenceGame() {
 
   correspondenceGame.moves = moveHistoryToUCI();
   correspondenceGame.result = gameResult;
+  correspondenceGame.endReason = gameEndReason || '';
   correspondenceGame.updatedAt = Date.now();
 
   localStorage.setItem(
@@ -2482,14 +2483,23 @@ function removeSelectedCorrespondenceGame() {
 function getCorrespondencePayload() {
   if (!correspondenceGame) return null;
 
+  const completedRecipient = correspondenceGame.localColor === 'white'
+    ? 'black'
+    : 'white';
+  const recipientColor = gameResult !== '*' || correspondenceGame.drawOfferBy
+    ? completedRecipient
+    : currentPlayer;
+
   const body = {
     v: 1,
     id: correspondenceGame.id,
     w: correspondenceGame.whiteName,
     b: correspondenceGame.blackName,
     m: moveHistoryToUCI(),
-    to: currentPlayer,
-    r: gameResult
+    to: recipientColor,
+    r: gameResult,
+    e: gameEndReason || '',
+    d: correspondenceGame.drawOfferBy || ''
   };
 
   return {
@@ -2710,8 +2720,10 @@ function correspondenceShareText() {
   if (!correspondenceGame) return '';
   if (correspondenceMessageTone === 'none') return '';
 
+  const payload = getCorrespondencePayload();
+  const recipientColor = payload?.d?.to || currentPlayer;
   const recipientName =
-    currentPlayer === 'white'
+    recipientColor === 'white'
       ? correspondenceGame.whiteName
       : correspondenceGame.blackName;
 
@@ -2721,6 +2733,26 @@ function correspondenceShareText() {
       : correspondenceGame.blackName;
 
   const moves = moveHistoryToUCI();
+
+  if (gameResult !== '*') {
+    const winner = gameResult === '1-0'
+      ? correspondenceGame.whiteName
+      : gameResult === '0-1'
+        ? correspondenceGame.blackName
+        : '';
+    const ending = gameEndReason === 'resignation'
+      ? `${senderName} resigned. ${winner} wins.`
+      : gameEndReason === 'agreement'
+        ? 'The draw offer was accepted. The game ends in a draw.'
+        : gameResult === '1/2-1/2'
+          ? 'The game ends in a draw.'
+          : `${winner} wins the game.`;
+    return `${recipientName},\n\nGame update: ${ending}\n\nOpen the link to save the final result.`;
+  }
+
+  if (correspondenceGame.drawOfferBy) {
+    return `${recipientName},\n\n${senderName} offered a draw. Open the game link to accept or decline.`;
+  }
 
   if (!moves.length) {
     return getCorrespondenceInvitationMessage(
@@ -2833,8 +2865,17 @@ function validateCorrespondenceBody(body) {
     throw new Error('The player assignment is invalid.');
   }
 
+  const validResult = ['*', '1-0', '0-1', '1/2-1/2'].includes(body.r || '*');
+  if (!validResult) {
+    throw new Error('The game result is invalid.');
+  }
+
+  if (body.d && !['white', 'black'].includes(body.d)) {
+    throw new Error('The draw offer is invalid.');
+  }
+
   const expectedTurn = body.m.length % 2 === 0 ? 'white' : 'black';
-  if (body.to !== expectedTurn) {
+  if ((body.r || '*') === '*' && !body.d && body.to !== expectedTurn) {
     throw new Error('The link has an inconsistent turn number.');
   }
 }
@@ -2992,6 +3033,7 @@ function replayCorrespondenceGame(gameToLoad) {
       ['1-0', '0-1', '1/2-1/2'].includes(gameToLoad.result)
     ) {
       gameResult = gameToLoad.result;
+      gameEndReason = gameToLoad.endReason || '';
     }
   } finally {
     importingPGN = false;
@@ -3052,6 +3094,8 @@ function acceptCorrespondenceBody(body) {
     localColor: body.to,
     moves: body.m.slice(),
     result: body.r || '*',
+    endReason: body.e || '',
+    drawOfferBy: body.d || '',
     lastSharedPly: -1,
     updatedAt: Date.now()
   };
@@ -3106,6 +3150,14 @@ function acceptCorrespondenceBody(body) {
   correspondenceGame = gameToLoad;
   saveCorrespondenceGame();
   updateCorrespondencePanel();
+
+  if (
+    correspondenceGame.drawOfferBy &&
+    correspondenceGame.drawOfferBy !== correspondenceGame.localColor &&
+    gameResult === '*'
+  ) {
+    setTimeout(() => respondToCorrespondenceDrawOffer(), 100);
+  }
 }
 
 function importCorrespondenceLink(linkValue, showErrors = true) {
@@ -3877,8 +3929,9 @@ function resignCurrentGame() {
     return;
   }
 
-  const resigningColor =
-    currentPlayer;
+  const resigningColor = correspondenceGame
+    ? correspondenceGame.localColor
+    : currentPlayer;
 
   const resigningName =
     resigningColor === 'white'
@@ -3903,6 +3956,8 @@ function resignCurrentGame() {
     resigningColor === 'white'
       ? '0-1'
       : '1-0';
+
+  gameEndReason = 'resignation';
 
   finishChessGame(
     result,
@@ -4018,6 +4073,14 @@ function offerDraw() {
 
   pauseChessClock();
 
+  if (correspondenceGame) {
+    correspondenceGame.drawOfferBy = correspondenceGame.localColor;
+    correspondenceMessage = 'Draw offer recorded. Send the updated game link to your opponent.';
+    saveCorrespondenceGame();
+    updateCorrespondencePanel();
+    return;
+  }
+
   if (computerEnabled) {
     cancelPendingComputerMove();
 
@@ -4077,6 +4140,41 @@ function offerDraw() {
     moveHistory.length > 0
   ) {
     startChessClock();
+  }
+}
+
+function respondToCorrespondenceDrawOffer() {
+  if (
+    !correspondenceGame ||
+    !correspondenceGame.drawOfferBy ||
+    correspondenceGame.drawOfferBy === correspondenceGame.localColor ||
+    gameResult !== '*'
+  ) {
+    return;
+  }
+
+  const offeringColor = correspondenceGame.drawOfferBy;
+  const offeringName = offeringColor === 'white'
+    ? correspondenceGame.whiteName
+    : correspondenceGame.blackName;
+  const accepted = confirm(
+    `${offeringName} offered a draw.\n\nAccept the draw?\n\nChoose Cancel to decline.`
+  );
+
+  correspondenceGame.drawOfferBy = '';
+
+  if (accepted) {
+    gameEndReason = 'agreement';
+    finishChessGame(
+      '1/2-1/2',
+      'Draw accepted. Send the final game link back to your opponent. 🤝'
+    );
+    correspondenceMessage = 'Draw accepted. Send the final game link back to your opponent.';
+  } else {
+    correspondenceMessage = 'Draw declined. Send the updated game link back, then continue from the next received link.';
+    saveCorrespondenceGame();
+    updateCorrespondencePanel();
+    if (clockEnabled && moveHistory.length > 0) startChessClock();
   }
 }
 
