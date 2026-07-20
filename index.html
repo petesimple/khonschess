@@ -128,6 +128,32 @@ body {
   box-shadow: inset 0 0 10px #ff0000;
 }
 
+.material-advantage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  margin: 0 0 10px;
+  padding: 5px 14px;
+  border: 2px solid #00ffff;
+  border-radius: 999px;
+  background: #101a20;
+  color: #ffffff;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.45);
+}
+
+.material-advantage.white-ahead {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.material-advantage.black-ahead {
+  color: #ffcf54;
+  border-color: #ffcf54;
+}
+
 .board-wrapper {
   position: relative;
   display: inline-block;
@@ -819,11 +845,19 @@ body {
       </div>
     </div>
 
-    <div
+<div
   id="statusBar"
   class="status-bar"
 >
   White to move
+</div>
+
+<div
+  id="materialAdvantage"
+  class="material-advantage"
+  aria-live="polite"
+>
+  Material: Even
 </div>
 
 <div
@@ -4329,9 +4363,58 @@ function getSpriteForPiece(piece) {
   return `pieces/${currentTheme}/${piece.color}-${piece.type.toLowerCase()}.png`;
 }
 
+function updateMaterialAdvantage() {
+  const display = document.getElementById('materialAdvantage');
+  if (!display) return;
+
+  if (currentGame !== 'chess') {
+    display.style.display = 'none';
+    return;
+  }
+
+  display.style.display = 'inline-flex';
+
+  const pieceValues = {
+    P: 1,
+    N: 3,
+    B: 3,
+    R: 5,
+    Q: 9,
+    K: 0
+  };
+  let whiteTotal = 0;
+  let blackTotal = 0;
+
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = gameState[row]?.[col];
+      if (!piece) continue;
+
+      const value = pieceValues[piece.type] || 0;
+      if (piece.color === 'white') whiteTotal += value;
+      if (piece.color === 'black') blackTotal += value;
+    }
+  }
+
+  const difference = whiteTotal - blackTotal;
+  display.classList.remove('white-ahead', 'black-ahead');
+
+  if (difference > 0) {
+    display.textContent = `Material advantage: White +${difference}`;
+    display.classList.add('white-ahead');
+  } else if (difference < 0) {
+    display.textContent = `Material advantage: Black +${Math.abs(difference)}`;
+    display.classList.add('black-ahead');
+  } else {
+    display.textContent = 'Material: Even';
+  }
+}
+
 function updateStatusBar() {
   const statusBar = document.getElementById('statusBar');
   if (!statusBar) return;
+
+  updateMaterialAdvantage();
 
   if (currentGame === 'chess') {
     if (gameResult !== "*") {
@@ -8328,7 +8411,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.3.4 (Last Move Destination Highlight)
+  Version 3.4.0 (Material Advantage)
 </div>
 
 </body>
