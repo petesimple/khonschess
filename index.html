@@ -108,6 +108,18 @@ body {
     inset 0 0 20px rgba(80, 255, 80, 0.35);
 }
 
+.square.last-move-destination::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 4px solid rgba(255, 190, 45, 0.95);
+  box-shadow:
+    inset 0 0 14px rgba(255, 190, 45, 0.4),
+    0 0 8px rgba(255, 190, 45, 0.75);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .in-check {
   background-color: #ff000055 !important;
   box-shadow: inset 0 0 10px #ff0000;
@@ -1749,6 +1761,7 @@ let selectedSquare = null;
 let currentPlayer = 'white';
 let legalMoves = [];
 let moveHistory = [];
+let lastMoveDestination = null;
 let castlingRights = {
   white: { K: true, Q: true },
   black: { K: true, Q: true }
@@ -3062,6 +3075,7 @@ function captureCorrespondenceBoardSnapshot() {
     currentGame,
     gameState,
     moveHistory,
+    lastMoveDestination,
     pgnMoves,
     currentPlayer,
     castlingRights,
@@ -3079,6 +3093,7 @@ function restoreCorrespondenceBoardSnapshot(snapshotText) {
   currentGame = snapshot.currentGame;
   gameState = snapshot.gameState;
   moveHistory = snapshot.moveHistory;
+  lastMoveDestination = snapshot.lastMoveDestination || null;
   pgnMoves = snapshot.pgnMoves;
   currentPlayer = snapshot.currentPlayer;
   castlingRights = snapshot.castlingRights;
@@ -3634,6 +3649,7 @@ const movingColor =
   }
 
   moveHistory.push(move);
+  lastMoveDestination = { row: toRow, col: toCol };
 
 currentPlayer =
   currentPlayer === 'white'
@@ -3796,6 +3812,7 @@ function hardResetForCurrentGame() {
   selectedSquare = null;
   legalMoves = [];
   moveHistory = [];
+  lastMoveDestination = null;
   pgnMoves = [];
   importedPGNHeaders = {};
   currentPlayer = 'white';
@@ -3864,6 +3881,7 @@ function saveGame() {
     currentTheme,
     gameState,
     moveHistory,
+    lastMoveDestination,
     pgnMoves,
     currentPlayer,
     castlingRights,
@@ -3894,6 +3912,14 @@ function loadGame() {
 
     gameState = data.gameState || gameState;
     moveHistory = data.moveHistory || [];
+    lastMoveDestination = data.lastMoveDestination || (
+      moveHistory.length
+        ? {
+            row: moveHistory[moveHistory.length - 1].toRow,
+            col: moveHistory[moveHistory.length - 1].toCol
+          }
+        : null
+    );
     pgnMoves = data.pgnMoves || [];
     importedPGNHeaders = data.importedPGNHeaders || {};
     currentPlayer = data.currentPlayer || 'white';
@@ -4459,6 +4485,14 @@ function drawBoard() {
       }
       if (legalMoves.some(m => m.row === row && m.col === col)) {
         square.classList.add('highlight');
+      }
+      if (
+        lastMoveDestination &&
+        lastMoveDestination.row === row &&
+        lastMoveDestination.col === col
+      ) {
+        square.classList.add('last-move-destination');
+        square.title = 'Last move ended here';
       }
 
       square.addEventListener('click', handleSquareClick);
@@ -5117,6 +5151,7 @@ function makeCheckersMove(fromRow, fromCol, toRow, toCol, piece) {
 
   gameState[toRow][toCol] = piece;
   gameState[fromRow][fromCol] = null;
+  lastMoveDestination = { row: toRow, col: toCol };
 
   let captured = false;
 
@@ -5703,6 +5738,7 @@ function resetChessStateForImport() {
   selectedSquare = null;
   legalMoves = [];
   moveHistory = [];
+  lastMoveDestination = null;
   pgnMoves = [];
 
   currentPlayer = 'white';
@@ -8289,7 +8325,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.3.3 (Clear Message Game Setup)
+  Version 3.3.4 (Last Move Destination Highlight)
 </div>
 
 </body>
