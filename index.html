@@ -154,6 +154,72 @@ body {
   border-color: #ffcf54;
 }
 
+.promotion-dialog {
+  width: min(92vw, 460px);
+  padding: 20px;
+  border: 3px solid #00ffff;
+  border-radius: 16px;
+  background: #111b20;
+  color: #ffffff;
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.65);
+}
+
+.promotion-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.promotion-dialog h2 {
+  margin: 0 0 8px;
+  color: #00ffff;
+}
+
+.promotion-dialog p {
+  margin: 0 0 16px;
+}
+
+.promotion-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.promotion-choice {
+  min-width: 0;
+  padding: 8px 4px;
+  border: 2px solid #65727a;
+  border-radius: 12px;
+  background: #202b31;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.promotion-choice:hover,
+.promotion-choice:focus-visible {
+  border-color: #ffcf54;
+  background: #2b3940;
+  outline: none;
+}
+
+.promotion-choice img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.promotion-choice span {
+  display: block;
+  margin-top: 4px;
+  font-weight: bold;
+}
+
+.promotion-cancel {
+  width: 100%;
+  margin-top: 14px;
+}
+
 .board-wrapper {
   position: relative;
   display: inline-block;
@@ -908,6 +974,19 @@ body {
 </div>
 
 <div id="chessboard"></div>
+
+<dialog
+  id="promotionDialog"
+  class="promotion-dialog"
+  aria-labelledby="promotionTitle"
+>
+  <h2 id="promotionTitle">Choose a promotion</h2>
+  <p>Select the piece your pawn becomes.</p>
+  <div id="promotionChoices" class="promotion-choices"></div>
+  <button id="promotionCancel" class="promotion-cancel" type="button">
+    Cancel promotion
+  </button>
+</dialog>
 
     <div
       id="backgammonControls"
@@ -4607,38 +4686,65 @@ function choosePawnPromotion(piece, destinationRow) {
     );
 
   if (!isPromotion) {
-    return null;
+    return Promise.resolve(null);
   }
 
-  while (true) {
-    const response = prompt(
-      'Promote pawn to:\n\nQ = Queen\nR = Rook\nB = Bishop\nN = Knight\n\nEnter Q, R, B, or N:',
-      'Q'
-    );
+  const dialog = document.getElementById('promotionDialog');
+  const choices = document.getElementById('promotionChoices');
+  const cancelButton = document.getElementById('promotionCancel');
 
-    if (response === null) {
-      return false;
-    }
-
-    const choice =
-      response
-        .trim()
-        .toUpperCase();
-
-    if (
-      ['Q', 'R', 'B', 'N']
-        .includes(choice)
-    ) {
-      return choice;
-    }
-
-    alert(
-      'Please enter Q, R, B, or N.'
-    );
+  if (!dialog || !choices || !cancelButton || !dialog.showModal) {
+    return Promise.resolve('Q');
   }
+
+  const promotionPieces = [
+    { type: 'Q', name: 'Queen' },
+    { type: 'R', name: 'Rook' },
+    { type: 'B', name: 'Bishop' },
+    { type: 'N', name: 'Knight' }
+  ];
+
+  choices.innerHTML = '';
+
+  return new Promise(resolve => {
+    let finished = false;
+
+    const finish = choice => {
+      if (finished) return;
+      finished = true;
+      dialog.close();
+      resolve(choice);
+    };
+
+    promotionPieces.forEach(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'promotion-choice';
+      button.setAttribute('aria-label', `Promote to ${option.name}`);
+
+      const image = document.createElement('img');
+      image.src = `pieces/${currentTheme}/${piece.color}-${option.type.toLowerCase()}.png`;
+      image.alt = '';
+
+      const label = document.createElement('span');
+      label.textContent = option.name;
+
+      button.appendChild(image);
+      button.appendChild(label);
+      button.addEventListener('click', () => finish(option.type));
+      choices.appendChild(button);
+    });
+
+    cancelButton.onclick = () => finish(false);
+    dialog.oncancel = event => {
+      event.preventDefault();
+      finish(false);
+    };
+    dialog.showModal();
+  });
 }
 
-function handleSquareClick(e) {
+async function handleSquareClick(e) {
     if (
     currentGame === 'chess' &&
     !pgnPlaybackPaused
@@ -4726,7 +4832,7 @@ if (currentGame === 'chess') {
     gameState[fromRow][fromCol];
 
   const promotionChoice =
-    choosePawnPromotion(
+    await choosePawnPromotion(
       movingPiece,
       row
     );
@@ -8411,7 +8517,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.4.0 (Material Advantage)
+  Version 3.4.1 (Visual Promotion Picker)
 </div>
 
 </body>
