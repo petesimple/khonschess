@@ -1207,6 +1207,16 @@ body {
           </select>
         </label>
 
+        <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; color: #ddd; font-size: 0.9em;">
+          <input
+            id="correspondenceShareTheme"
+            type="checkbox"
+            checked
+            onchange="setCorrespondenceShareTheme(this.checked)"
+          >
+          Share my piece theme with this link
+        </label>
+
         <div class="correspondence-actions">
           <button
             id="correspondenceShareButton"
@@ -1948,6 +1958,7 @@ let correspondenceMessage = '';
 let correspondenceFeatureEnabled = false;
 let correspondencePreviousComputerEnabled = true;
 let correspondenceMessageTone = 'funny';
+let correspondenceShareTheme = true;
 
 let gameEndReason = '';
 
@@ -2661,6 +2672,11 @@ function buildCorrespondenceURL() {
 
   const url = new URL(window.location.href);
   url.searchParams.set('game', 'chess');
+  if (correspondenceShareTheme) {
+    url.searchParams.set('theme', currentTheme);
+  } else {
+    url.searchParams.delete('theme');
+  }
   url.hash = `khon=${encodeCorrespondenceData(payload)}`;
   return url.toString();
 }
@@ -2798,6 +2814,22 @@ function setCorrespondenceMessageTone(value) {
 function loadCorrespondenceMessageTone() {
   const savedTone = localStorage.getItem('khonsChessMessageTone');
   setCorrespondenceMessageTone(savedTone || 'funny');
+}
+
+function setCorrespondenceShareTheme(enabled) {
+  correspondenceShareTheme = Boolean(enabled);
+  localStorage.setItem(
+    'khonsChessShareMessageTheme',
+    correspondenceShareTheme ? 'true' : 'false'
+  );
+
+  const checkbox = document.getElementById('correspondenceShareTheme');
+  if (checkbox) checkbox.checked = correspondenceShareTheme;
+}
+
+function loadCorrespondenceShareTheme() {
+  const saved = localStorage.getItem('khonsChessShareMessageTheme');
+  setCorrespondenceShareTheme(saved === null ? true : saved === 'true');
 }
 
 function getCorrespondenceInvitationMessage(
@@ -3490,6 +3522,7 @@ function updateCorrespondencePanel() {
   const note = document.getElementById('correspondenceNote');
   const shareButton = document.getElementById('correspondenceShareButton');
   const toneSelect = document.getElementById('correspondenceMessageTone');
+  const shareThemeCheckbox = document.getElementById('correspondenceShareTheme');
   const copyButton = document.getElementById('correspondenceCopyButton');
 
   if (!panel || !setup || !active) return;
@@ -3505,6 +3538,10 @@ function updateCorrespondencePanel() {
 
   if (toneSelect) {
     toneSelect.value = correspondenceMessageTone;
+  }
+
+  if (shareThemeCheckbox) {
+    shareThemeCheckbox.checked = correspondenceShareTheme;
   }
 
   if (copyButton) {
@@ -8480,13 +8517,16 @@ window.addEventListener('hashchange', () => {
   }
 });
 
-// Apply URL overrides first, then load for that game
+// Remember whether the incoming link explicitly requested a theme.
+// An explicit link theme wins after the local saved game is restored.
+const requestedThemeOnInitialLoad = getThemeFromURL();
+
+// Apply URL overrides first, then load for that game.
 applyGameFromURL();
 applyThemeFromURL();
 
-// Keep URL explicit if user used shorthand
+// Keep the game explicit. The final theme is written after local loading.
 setURLParam('game', currentGame);
-setURLParam('theme', currentTheme);
 
 loadBoardSettings();
 loadClockSettings();
@@ -8498,8 +8538,17 @@ loadClockSettings();
 */
 loadComputerSettings();
 loadCorrespondenceMessageTone();
+loadCorrespondenceShareTheme();
 updateCorrespondenceSetupPreview();
 loadGame();
+
+if (requestedThemeOnInitialLoad) {
+  applyThemeFromURL();
+  drawBoard();
+  saveGame();
+}
+
+setURLParam('theme', currentTheme);
 
 if (window.location.hash.startsWith('#khon=')) {
   importCorrespondenceLink(window.location.href, true);
@@ -8521,7 +8570,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.4.1 (Visual Promotion Picker)
+  Version 3.4.2 (Optional Theme Sharing)
 </div>
 
 </body>
