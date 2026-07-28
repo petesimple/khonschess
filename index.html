@@ -10,6 +10,10 @@
 <style>
 body {
   background-color: #000;
+  background-image: none;
+  background-size: auto;
+  background-position: center top;
+  background-attachment: fixed;
   color: #fff;
   font-family: 'Courier New', Courier, monospace;
   display: flex;
@@ -868,6 +872,33 @@ body {
   margin-top: 10px;
 }
 
+.table-background-controls {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #555;
+}
+
+.table-background-preview {
+  width: min(100%, 240px);
+  height: 92px;
+  margin: 12px auto 0;
+  overflow: hidden;
+  border: 2px solid #888;
+  border-radius: 8px;
+  background-color: #000;
+  background-position: center;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+}
+
+.table-background-help {
+  margin: 8px 0 0;
+  color: #aaa;
+  font-size: 0.82em;
+  line-height: 1.4;
+  text-align: center;
+}
+
 </style>
 </head>
 
@@ -1503,6 +1534,58 @@ body {
     aria-label="Board color preview"
   ></div>
 </div>
+
+<div class="table-background-controls">
+  <div class="tool-section-title">
+    Table Background
+  </div>
+
+  <div class="board-theme-grid">
+    <label for="tableBackgroundSelect">
+      Background:
+    </label>
+
+    <select id="tableBackgroundSelect">
+      <option value="black">
+        Black
+      </option>
+
+      <option value="walnut">
+        Walnut Room
+      </option>
+
+      <option value="felt">
+        Tournament Felt
+      </option>
+
+      <option value="neon">
+        Neon Grid
+      </option>
+
+      <option value="stars">
+        Starfield
+      </option>
+
+      <option value="random">
+        Random
+      </option>
+    </select>
+  </div>
+
+  <div
+    id="tableBackgroundPreview"
+    class="table-background-preview"
+    role="img"
+    aria-label="Black table background preview"
+  ></div>
+
+  <p
+    id="tableBackgroundHelp"
+    class="table-background-help"
+  >
+    Black is the default background.
+  </p>
+</div>
         
         </div>
       </details>
@@ -1914,6 +1997,8 @@ let currentTheme = 'classic';
 let currentGame = 'chess';
 
 let boardThemeKey = 'classic';
+let tableBackgroundPreference = 'black';
+let activeTableBackgroundKey = 'black';
 
 let customBoardColors = {
   light: '#F0D9B5',
@@ -2066,6 +2151,52 @@ const BOARD_THEMES = {
     light: '#70798C',
     dark: '#25283D',
     border: '#A0C4FF'
+  }
+};
+
+const TABLE_BACKGROUNDS = {
+  black: {
+    name: 'Black',
+    color: '#000000',
+    image: 'none',
+    size: 'auto',
+    position: 'center top'
+  },
+
+  walnut: {
+    name: 'Walnut Room',
+    color: '#2A160D',
+    image:
+      'repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 46px), linear-gradient(135deg, #5A321D 0%, #2B160C 52%, #704226 100%)',
+    size: 'auto',
+    position: 'center top'
+  },
+
+  felt: {
+    name: 'Tournament Felt',
+    color: '#082E22',
+    image:
+      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.07) 0 1px, transparent 2px), radial-gradient(circle at 70% 65%, rgba(0,0,0,0.16) 0 1px, transparent 2px), linear-gradient(145deg, #14563F, #06271D)',
+    size: '18px 18px, 22px 22px, auto',
+    position: 'center top'
+  },
+
+  neon: {
+    name: 'Neon Grid',
+    color: '#070914',
+    image:
+      'linear-gradient(rgba(0,255,255,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(255,0,255,0.12) 1px, transparent 1px), radial-gradient(circle at 50% 20%, #1A1645 0%, #070914 60%)',
+    size: '42px 42px, 42px 42px, auto',
+    position: 'center top'
+  },
+
+  stars: {
+    name: 'Starfield',
+    color: '#02040D',
+    image:
+      'radial-gradient(circle, rgba(255,255,255,0.9) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(130,205,255,0.7) 0 1px, transparent 1.5px), linear-gradient(#070B22, #010208)',
+    size: '61px 61px, 97px 97px, auto',
+    position: '7px 11px, 31px 43px, center top'
   }
 };
 
@@ -7648,6 +7779,150 @@ function buildBoardPreview() {
   }
 }
 
+function chooseRandomTableBackground() {
+  const keys =
+    Object.keys(TABLE_BACKGROUNDS);
+
+  if (keys.length === 1) {
+    return keys[0];
+  }
+
+  const alternatives =
+    keys.filter(
+      key =>
+        key !==
+        activeTableBackgroundKey
+    );
+
+  return alternatives[
+    Math.floor(
+      Math.random() *
+      alternatives.length
+    )
+  ];
+}
+
+function applyTableBackground(
+  chooseNewRandom = false
+) {
+  if (
+    tableBackgroundPreference ===
+      'random' &&
+    (
+      chooseNewRandom ||
+      !TABLE_BACKGROUNDS[
+        activeTableBackgroundKey
+      ]
+    )
+  ) {
+    activeTableBackgroundKey =
+      chooseRandomTableBackground();
+  } else if (
+    tableBackgroundPreference !==
+    'random'
+  ) {
+    activeTableBackgroundKey =
+      TABLE_BACKGROUNDS[
+        tableBackgroundPreference
+      ]
+        ? tableBackgroundPreference
+        : 'black';
+  }
+
+  const background =
+    TABLE_BACKGROUNDS[
+      activeTableBackgroundKey
+    ] ||
+    TABLE_BACKGROUNDS.black;
+
+  document.body.style
+    .backgroundColor =
+      background.color;
+
+  document.body.style
+    .backgroundImage =
+      background.image;
+
+  document.body.style
+    .backgroundSize =
+      background.size;
+
+  document.body.style
+    .backgroundPosition =
+      background.position;
+
+  const select =
+    document.getElementById(
+      'tableBackgroundSelect'
+    );
+
+  const preview =
+    document.getElementById(
+      'tableBackgroundPreview'
+    );
+
+  const help =
+    document.getElementById(
+      'tableBackgroundHelp'
+    );
+
+  if (select) {
+    select.value =
+      tableBackgroundPreference;
+  }
+
+  if (preview) {
+    preview.style.backgroundColor =
+      background.color;
+
+    preview.style.backgroundImage =
+      background.image;
+
+    preview.style.backgroundSize =
+      background.size;
+
+    preview.style.backgroundPosition =
+      background.position;
+
+    preview.setAttribute(
+      'aria-label',
+      `${background.name} table background preview`
+    );
+  }
+
+  if (help) {
+    help.textContent =
+      tableBackgroundPreference ===
+      'random'
+        ? `Random selected: ${background.name}. A new background is chosen when the app opens.`
+        : `${background.name} appears behind the game table.`;
+  }
+}
+
+function saveTableBackgroundSetting() {
+  localStorage.setItem(
+    'khonsChessTableBackground',
+    tableBackgroundPreference
+  );
+}
+
+function loadTableBackgroundSetting() {
+  const saved =
+    localStorage.getItem(
+      'khonsChessTableBackground'
+    );
+
+  tableBackgroundPreference =
+    saved === 'random' ||
+    Boolean(
+      TABLE_BACKGROUNDS[saved]
+    )
+      ? saved
+      : 'black';
+
+  applyTableBackground(true);
+}
+
 function saveBoardSettings() {
   localStorage.setItem(
     'khonsChessBoardSettings',
@@ -8348,6 +8623,11 @@ const boardThemeSelect =
     'boardThemeSelect'
   );
 
+const tableBackgroundSelect =
+  document.getElementById(
+    'tableBackgroundSelect'
+  );
+
 const boardLightColor =
   document.getElementById(
     'boardLightColor'
@@ -8388,6 +8668,16 @@ const resetBoardColorsButton =
     'resetBoardColorsButton'
   );
 
+tableBackgroundSelect.addEventListener(
+  'change',
+  event => {
+    tableBackgroundPreference =
+      event.target.value;
+
+    applyTableBackground(true);
+    saveTableBackgroundSetting();
+  }
+);
 
     boardThemeSelect.addEventListener(
   'change',
@@ -8541,6 +8831,7 @@ applyThemeFromURL();
 setURLParam('game', currentGame);
 
 loadBoardSettings();
+loadTableBackgroundSetting();
 loadClockSettings();
 
 /*
@@ -8582,7 +8873,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.4.2 (Optional Theme Sharing)
+  Version 3.5.0 (Table Backgrounds)
 </div>
 
 </body>
