@@ -899,6 +899,11 @@ body {
   text-align: center;
 }
 
+#customTableBackgroundControls {
+  display: none;
+  margin-top: 10px;
+}
+
 </style>
 </head>
 
@@ -1566,10 +1571,40 @@ body {
         Starfield
       </option>
 
+      <option value="custom">
+        Custom Color
+      </option>
+
       <option value="random">
         Random
       </option>
     </select>
+  </div>
+
+  <div id="customTableBackgroundControls">
+    <div class="board-theme-grid">
+      <label for="tableBackgroundColor">
+        Color:
+      </label>
+
+      <div class="board-color-control">
+        <input
+          id="tableBackgroundColor"
+          type="color"
+          value="#1A1A1A"
+        >
+
+        <input
+          id="tableBackgroundHex"
+          class="board-color-value"
+          type="text"
+          value="#1A1A1A"
+          maxlength="7"
+          spellcheck="false"
+          aria-label="Custom table background hex color"
+        >
+      </div>
+    </div>
   </div>
 
   <div
@@ -1999,6 +2034,7 @@ let currentGame = 'chess';
 let boardThemeKey = 'classic';
 let tableBackgroundPreference = 'black';
 let activeTableBackgroundKey = 'black';
+let customTableBackgroundColor = '#1A1A1A';
 
 let customBoardColors = {
   light: '#F0D9B5',
@@ -2197,6 +2233,14 @@ const TABLE_BACKGROUNDS = {
       'radial-gradient(circle, rgba(255,255,255,0.9) 0 1px, transparent 1.5px), radial-gradient(circle, rgba(130,205,255,0.7) 0 1px, transparent 1.5px), linear-gradient(#070B22, #010208)',
     size: '61px 61px, 97px 97px, auto',
     position: '7px 11px, 31px 43px, center top'
+  },
+
+  custom: {
+    name: 'Custom Color',
+    color: '#1A1A1A',
+    image: 'none',
+    size: 'auto',
+    position: 'center top'
   }
 };
 
@@ -7781,7 +7825,11 @@ function buildBoardPreview() {
 
 function chooseRandomTableBackground() {
   const keys =
-    Object.keys(TABLE_BACKGROUNDS);
+    Object.keys(
+      TABLE_BACKGROUNDS
+    ).filter(
+      key => key !== 'custom'
+    );
 
   if (keys.length === 1) {
     return keys[0];
@@ -7830,10 +7878,19 @@ function applyTableBackground(
   }
 
   const background =
-    TABLE_BACKGROUNDS[
-      activeTableBackgroundKey
-    ] ||
-    TABLE_BACKGROUNDS.black;
+    activeTableBackgroundKey ===
+      'custom'
+      ? {
+          ...TABLE_BACKGROUNDS.custom,
+          color:
+            customTableBackgroundColor
+        }
+      : (
+          TABLE_BACKGROUNDS[
+            activeTableBackgroundKey
+          ] ||
+          TABLE_BACKGROUNDS.black
+        );
 
   document.body.style
     .backgroundColor =
@@ -7866,9 +7923,42 @@ function applyTableBackground(
       'tableBackgroundHelp'
     );
 
+  const customControls =
+    document.getElementById(
+      'customTableBackgroundControls'
+    );
+
+  const customPicker =
+    document.getElementById(
+      'tableBackgroundColor'
+    );
+
+  const customHex =
+    document.getElementById(
+      'tableBackgroundHex'
+    );
+
   if (select) {
     select.value =
       tableBackgroundPreference;
+  }
+
+  if (customControls) {
+    customControls.style.display =
+      tableBackgroundPreference ===
+        'custom'
+        ? 'block'
+        : 'none';
+  }
+
+  if (customPicker) {
+    customPicker.value =
+      customTableBackgroundColor;
+  }
+
+  if (customHex) {
+    customHex.value =
+      customTableBackgroundColor;
   }
 
   if (preview) {
@@ -7904,12 +7994,25 @@ function saveTableBackgroundSetting() {
     'khonsChessTableBackground',
     tableBackgroundPreference
   );
+
+  localStorage.setItem(
+    'khonsChessCustomTableBackground',
+    customTableBackgroundColor
+  );
 }
 
 function loadTableBackgroundSetting() {
   const saved =
     localStorage.getItem(
       'khonsChessTableBackground'
+    );
+
+  customTableBackgroundColor =
+    normalizeHexColor(
+      localStorage.getItem(
+        'khonsChessCustomTableBackground'
+      ),
+      '#1A1A1A'
     );
 
   tableBackgroundPreference =
@@ -7921,6 +8024,22 @@ function loadTableBackgroundSetting() {
       : 'black';
 
   applyTableBackground(true);
+}
+
+function setCustomTableBackgroundColor(
+  value
+) {
+  customTableBackgroundColor =
+    normalizeHexColor(
+      value,
+      customTableBackgroundColor
+    );
+
+  tableBackgroundPreference =
+    'custom';
+
+  applyTableBackground();
+  saveTableBackgroundSetting();
 }
 
 function saveBoardSettings() {
@@ -8628,6 +8747,16 @@ const tableBackgroundSelect =
     'tableBackgroundSelect'
   );
 
+const tableBackgroundColor =
+  document.getElementById(
+    'tableBackgroundColor'
+  );
+
+const tableBackgroundHex =
+  document.getElementById(
+    'tableBackgroundHex'
+  );
+
 const boardLightColor =
   document.getElementById(
     'boardLightColor'
@@ -8676,6 +8805,24 @@ tableBackgroundSelect.addEventListener(
 
     applyTableBackground(true);
     saveTableBackgroundSetting();
+  }
+);
+
+tableBackgroundColor.addEventListener(
+  'input',
+  event => {
+    setCustomTableBackgroundColor(
+      event.target.value
+    );
+  }
+);
+
+tableBackgroundHex.addEventListener(
+  'change',
+  event => {
+    setCustomTableBackgroundColor(
+      event.target.value
+    );
   }
 );
 
@@ -8873,7 +9020,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.5.0 (Table Backgrounds)
+  Version 3.5.1 (Custom Table Background)
 </div>
 
 </body>
