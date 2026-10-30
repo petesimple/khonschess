@@ -1887,6 +1887,28 @@ body {
 
           </div>
 
+          <div class="pgn-playback-controls" role="group" aria-label="Review individual moves">
+            <button
+              id="pgnBackMoveButton"
+              type="button"
+              onclick="stepPGNMove(-1)"
+              disabled
+              title="Go back one move (White or Black)"
+            >
+              ◀ Back move
+            </button>
+
+            <button
+              id="pgnForwardMoveButton"
+              type="button"
+              onclick="stepPGNMove(1)"
+              disabled
+              title="Go forward one move (White or Black)"
+            >
+              Forward move ▶
+            </button>
+          </div>
+
           <div id="pgnPlaybackStatus">
             No PGN games loaded
           </div>
@@ -6343,6 +6365,7 @@ function updatePGNPlaylistUI() {
     nextButton.disabled = true;
     playButton.disabled = true;
     restartButton.disabled = true;
+    updatePGNPlaybackControls();
 
     updatePGNPlaybackStatus(
       'No PGN games loaded'
@@ -6636,6 +6659,76 @@ function scheduleNextPGNMove() {
     );
 }
 
+// Apply one half-move using the normal chess rules (including special moves).
+function applyPGNPlaybackMove(move) {
+  const parsed = verboseMoveToCoordinates(move);
+  const moved = executeChessMove(
+    parsed.fromRow,
+    parsed.fromCol,
+    parsed.toRow,
+    parsed.toCol,
+    parsed.promotion
+  );
+
+  if (!moved) {
+    throw new Error(
+      `Khon's Chess rejected ${move.san || move.lan || move.from + move.to}.`
+    );
+  }
+
+  pgnPlaybackMoveIndex++;
+}
+
+function stepPGNMove(direction) {
+  if (
+    currentGame !== 'chess' ||
+    selectedPGNGameIndex < 0 ||
+    !pgnPlaybackMoves.length ||
+    ![-1, 1].includes(direction)
+  ) {
+    return;
+  }
+
+  pauseChessClock();
+  pausePGNPlayback();
+
+  const targetIndex = pgnPlaybackMoveIndex + direction;
+  if (targetIndex < 0 || targetIndex > pgnPlaybackMoves.length) {
+    return;
+  }
+
+  try {
+    importingPGN = true;
+
+    if (direction < 0) {
+      // Rebuild the earlier position so captures, castling rights, en passant,
+      // promotions, move history, and counters are all restored consistently.
+      resetChessStateForImport();
+      pgnPlaybackMoveIndex = 0;
+    }
+
+    while (pgnPlaybackMoveIndex < targetIndex) {
+      applyPGNPlaybackMove(pgnPlaybackMoves[pgnPlaybackMoveIndex]);
+    }
+
+    if (pgnPlaybackMoveIndex === pgnPlaybackMoves.length) {
+      finishPGNPlayback();
+    } else {
+      saveGame();
+      drawBoard();
+      updateStatusBar();
+      updatePGNPlaybackControls();
+      updatePGNPlaybackStatus();
+    }
+  } catch (error) {
+    console.error('PGN move review stopped:', error);
+    pausePGNPlayback();
+    alert(`Review stopped at half-move ${pgnPlaybackMoveIndex + 1}.\n\n${error.message}`);
+  } finally {
+    importingPGN = false;
+  }
+}
+
 function playNextPGNMove() {
   pgnPlaybackTimer = null;
   
@@ -6656,32 +6749,9 @@ function playNextPGNMove() {
   try {
     importingPGN = true;
 
-    const parsed =
-      verboseMoveToCoordinates(
-        move
-      );
+    applyPGNPlaybackMove(move);
 
-    const moved =
-      executeChessMove(
-        parsed.fromRow,
-        parsed.fromCol,
-        parsed.toRow,
-        parsed.toCol,
-        parsed.promotion
-      );
-
-    if (!moved) {
-      throw new Error(
-        `Khon's Chess rejected ${
-          move.san ||
-          move.lan ||
-          move.from + move.to
-        }.`
-      );
-    }
-
-    pgnPlaybackMoveIndex++;
-
+    updatePGNPlaybackControls();
     updatePGNPlaybackStatus();
   } catch (error) {
     console.error(
@@ -6765,6 +6835,21 @@ function setPGNPlaybackSpeed(value) {
 }
 
 function updatePGNPlaybackControls() {
+  const hasMoves =
+    currentGame === 'chess' &&
+    selectedPGNGameIndex >= 0 &&
+    pgnPlaybackMoves.length > 0;
+  const backMoveButton = document.getElementById('pgnBackMoveButton');
+  const forwardMoveButton = document.getElementById('pgnForwardMoveButton');
+
+  if (backMoveButton) {
+    backMoveButton.disabled = !hasMoves || pgnPlaybackMoveIndex <= 0;
+  }
+  if (forwardMoveButton) {
+    forwardMoveButton.disabled =
+      !hasMoves || pgnPlaybackMoveIndex >= pgnPlaybackMoves.length;
+  }
+
   const playButton =
     document.getElementById(
       'pgnPlayButton'
