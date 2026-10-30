@@ -904,6 +904,63 @@ body {
   margin-top: 10px;
 }
 
+
+.tools-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tools-panel-title { flex: 1; }
+.tools-panel-toggle {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  background: #18383d;
+  color: #0ff;
+  border: 1px solid #0ff;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+.tools-panel-toggle:focus-visible,
+.tools-panel.is-floating > summary:focus-visible {
+  outline: 2px solid #ffcf54;
+  outline-offset: -3px;
+}
+.tools-panel.is-floating {
+  position: fixed;
+  z-index: 1000;
+  width: min(480px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: 0;
+  box-sizing: border-box;
+  overflow: auto;
+  box-shadow: 0 12px 40px #000b;
+  border-color: #0ff;
+}
+.tools-panel.is-floating > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none;
+  background: #26383b;
+}
+.tools-panel.is-floating > summary::after { display: none; }
+.tools-panel.is-dragging > summary { cursor: grabbing; }
+.tools-panel.is-dragging { user-select: none; }
+.tools-panel-floating-help {
+  display: none;
+  margin: 0;
+  padding: 8px 14px 0;
+  color: #bbb;
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+.tools-panel.is-floating .tools-panel-floating-help { display: block; }
+
 </style>
 </head>
 
@@ -1313,8 +1370,14 @@ body {
 
   </div>
 
-  <details class="tools-panel">
-    <summary>⚙️ Tools &amp; Settings</summary>
+  <details class="tools-panel" id="toolsPanel">
+    <summary id="toolsPanelHeader">
+      <span class="tools-panel-title">⚙️ Tools &amp; Settings</span>
+      <button type="button" id="toolsPanelToggle" class="tools-panel-toggle"
+        aria-label="Pop out Tools and Settings into a movable panel"
+        aria-pressed="false" aria-controls="toolsPanel">↗ Pop out</button>
+    </summary>
+    <p class="tools-panel-floating-help">Drag the title bar to move. With the title bar focused, use arrow keys to move or Escape to dock.</p>
 
     <div class="tools-panel-content">
 
@@ -9106,6 +9169,104 @@ if (
 ) {
   initializeChessEngine();
 }
+
+// Keep the same settings elements when floating, preserving values and listeners.
+(() => {
+  const panel = document.getElementById('toolsPanel');
+  const header = document.getElementById('toolsPanelHeader');
+  const toggle = document.getElementById('toolsPanelToggle');
+  let floating = false;
+  let drag = null;
+
+  function place(left, top) {
+    const rect = panel.getBoundingClientRect();
+    const margin = 12;
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+    panel.style.left = `${Math.max(margin, Math.min(left, maxLeft))}px`;
+    panel.style.top = `${Math.max(margin, Math.min(top, maxTop))}px`;
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    const pointerId = drag.pointerId;
+    drag = null;
+    panel.classList.remove('is-dragging');
+    if (header.hasPointerCapture(pointerId)) header.releasePointerCapture(pointerId);
+  }
+
+  function setFloating(value) {
+    endDrag();
+    floating = value;
+    panel.open = true;
+    panel.classList.toggle('is-floating', floating);
+    toggle.textContent = floating ? '↙ Dock' : '↗ Pop out';
+    toggle.setAttribute('aria-pressed', String(floating));
+    toggle.setAttribute('aria-label', floating
+      ? 'Dock Tools and Settings back into the page'
+      : 'Pop out Tools and Settings into a movable panel');
+    if (floating) {
+      place(window.innerWidth - panel.getBoundingClientRect().width - 24, 24);
+      header.focus({ preventScroll: true });
+    } else {
+      panel.style.removeProperty('left');
+      panel.style.removeProperty('top');
+      panel.scrollIntoView({ block: 'nearest' });
+      toggle.focus({ preventScroll: true });
+    }
+  }
+
+  toggle.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    setFloating(!floating);
+  });
+
+  header.addEventListener('click', event => {
+    if (floating) event.preventDefault();
+  });
+
+  header.addEventListener('pointerdown', event => {
+    if (!floating || event.button !== 0 || event.target.closest('button')) return;
+    const rect = panel.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, x: event.clientX - rect.left, y: event.clientY - rect.top };
+    header.setPointerCapture(event.pointerId);
+    panel.classList.add('is-dragging');
+    header.focus({ preventScroll: true });
+    event.preventDefault();
+  });
+
+  header.addEventListener('pointermove', event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    place(event.clientX - drag.x, event.clientY - drag.y);
+  });
+  header.addEventListener('pointerup', endDrag);
+  header.addEventListener('pointercancel', endDrag);
+  header.addEventListener('lostpointercapture', endDrag);
+
+  header.addEventListener('keydown', event => {
+    if (!floating || event.target !== header) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setFloating(false);
+      return;
+    }
+    const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    const distance = event.shiftKey ? 40 : 10;
+    place(rect.left + direction[0] * distance, rect.top + direction[1] * distance);
+  });
+
+  window.addEventListener('resize', () => {
+    if (!floating) return;
+    const rect = panel.getBoundingClientRect();
+    place(rect.left, rect.top);
+  });
+})();
+
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
