@@ -2878,7 +2878,6 @@ function loadSelectedCorrespondenceGame() {
 
   try {
     replayCorrespondenceGame(stored);
-    correspondenceGame = stored;
     correspondenceMessage = 'Saved message game opened.';
     localStorage.setItem('khonsChessActiveMessageGame', stored.id);
     updateCorrespondencePanel();
@@ -3446,6 +3445,7 @@ function toggleCorrespondenceFeature(enabled, restoreSaved = true) {
     correspondenceGame = null;
     correspondenceMessage = '';
     restoreComputerAfterCorrespondence();
+    drawBoard();
   }
 
   clearCorrespondenceHash();
@@ -3498,6 +3498,7 @@ function replayCorrespondenceGame(gameToLoad) {
     correspondenceApplying = false;
   }
 
+  correspondenceGame = gameToLoad;
   drawBoard();
   updateStatusBar();
 }
@@ -3607,7 +3608,6 @@ function acceptCorrespondenceBody(body) {
     throw error;
   }
 
-  correspondenceGame = gameToLoad;
   saveCorrespondenceGame();
   updateCorrespondencePanel();
 
@@ -3674,7 +3674,6 @@ function restoreActiveCorrespondenceGame() {
 
   try {
     replayCorrespondenceGame(stored);
-    correspondenceGame = stored;
     correspondenceMessage = 'Saved message game restored on this device.';
     updateCorrespondencePanel();
     return true;
@@ -3738,6 +3737,7 @@ function startCorrespondenceGame() {
     ? 'You have White. Make the first move, then send the new link.'
     : 'Your opponent has White. Send the invitation link now.';
 
+  drawBoard();
   saveCorrespondenceGame();
   updateCorrespondencePanel();
   updateStatusBar();
@@ -3790,6 +3790,7 @@ function leaveCorrespondenceGame() {
   correspondenceGame = null;
   correspondenceMessage = '';
   restoreComputerAfterCorrespondence();
+  drawBoard();
   updateCorrespondencePanel();
   updateStatusBar();
 }
@@ -4906,6 +4907,11 @@ function drawBoard() {
   document.getElementById('backgammonControls').style.display = 'none';
   document.getElementById('endTurnBtn').style.display = 'none';
 
+  const blackAtBottom = currentGame === 'chess' && (
+    correspondenceGame
+      ? correspondenceGame.localColor === 'black'
+      : computerEnabled && computerColor === 'white'
+  );
   const files = ['a','b','c','d','e','f','g','h'];
   board.style.display = 'grid';
   board.style.gridTemplateColumns = 'repeat(8, 1fr)';
@@ -4924,8 +4930,10 @@ function drawBoard() {
     }
   }
 
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  for (let displayRow = 0; displayRow < 8; displayRow++) {
+    const row = blackAtBottom ? 7 - displayRow : displayRow;
+    for (let displayCol = 0; displayCol < 8; displayCol++) {
+      const col = blackAtBottom ? 7 - displayCol : displayCol;
       const square = document.createElement('div');
       square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
       square.dataset.row = row;
@@ -4941,13 +4949,13 @@ function drawBoard() {
         }
       }
 
-      if (col === 0) {
+      if (displayCol === 0) {
         const rank = document.createElement('div');
         rank.className = 'rank-label';
         rank.textContent = 8 - row;
         square.appendChild(rank);
       }
-      if (row === 7) {
+      if (displayRow === 7) {
         const file = document.createElement('div');
         file.className = 'file-label';
         file.textContent = files[col];
@@ -5474,14 +5482,15 @@ computerEnabledInput.addEventListener('change', event => {
   computerEnabled = event.target.checked;
 
   if (computerEnabled) {
-  updatePlayerSideIndicator();
-  initializeChessEngine();
-  maybeStartComputerTurn();
-} else {
-  cancelPendingComputerMove();
+    updatePlayerSideIndicator();
+    drawBoard();
+    initializeChessEngine();
+    maybeStartComputerTurn();
+  } else {
+    cancelPendingComputerMove();
 
-  selectedSquare = null;
-  legalMoves = [];
+    selectedSquare = null;
+    legalMoves = [];
 
     if (chessEngine) {
       chessEngine.postMessage('stop');
