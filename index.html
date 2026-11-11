@@ -104,6 +104,53 @@ body {
   color: var(--board-dark-text);
 }
 
+#chessboard.hnefatafl-board {
+  max-width: 660px;
+}
+
+.square.tafl-throne::after, .square.tafl-corner::after {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border: 2px solid #ffcf54;
+  background: #ffcf5433;
+  border-radius: 20%;
+  pointer-events: none;
+}
+
+.square.tafl-corner::after {
+  border-color: #72e7bc;
+  background: #72e7bc44;
+  transform: rotate(45deg);
+  inset: 22%;
+}
+
+#hnefataflInfo {
+  width: 90vw;
+  max-width: 660px;
+  box-sizing: border-box;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #ffcf54;
+  border-radius: 8px;
+  background: #181818;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+#hnefataflInfo p {
+  margin: 8px 0;
+}
+
+#hnefataflInfo summary {
+  cursor: pointer;
+  color: #ffcf54;
+}
+
+#hnefataflInfo a {
+  color: #72e7bc;
+}
+
 .selected {
   outline: 3px solid yellow;
 }
@@ -1068,6 +1115,33 @@ body {
 
 <div id="chessboard"></div>
 
+<section id="hnefataflInfo" hidden aria-label="Hnefatafl game guide">
+  <strong>Hnefatafl · The king's escape</strong>
+  <p>Two players on this device. Black pawns are the attackers and move first.
+    White pawns defend the white king. Your selected piece theme applies here too.</p>
+  <p id="hnefataflArmyCount" aria-live="polite"></p>
+  <details>
+    <summary>How to play · Fetlar-style rules</summary>
+    <p>Click a piece, then a highlighted square. Every piece slides any distance
+      horizontally or vertically through empty squares.</p>
+    <p>White wins by moving the king onto a green corner. Black wins by surrounding
+      the king on four sides, or three sides beside the golden throne. At an edge,
+      the king is safe unless he is the last defender and all his remaining sides are blocked by attackers.</p>
+    <p>Capture soldiers by closing a sandwich with your pieces on opposite sides.
+      Multiple captures are possible. The king can help capture. Moving between
+      enemies is safe until an opponent closes a new sandwich.</p>
+    <p>Only the king can stop on the throne or corners. Soldiers may cross the empty
+      throne. Corners and the empty throne help either army capture. A king on the
+      throne helps capture attackers. The board edge does not help capture soldiers.</p>
+    <p>Black also wins by enclosing every defender and the king away from all edges.
+      A player with no legal move loses. A third occurrence of the same position and
+      turn is an automatic draw in this build. Players can also agree a draw.</p>
+    <p>Based on <a href="https://aagenielsen.dk/fetlar_rules_en.php"
+      target="_blank" rel="noopener noreferrer">Fetlar Hnefatafl rules</a>,
+      with the threefold draw house rule.</p>
+  </details>
+</section>
+
 <dialog
   id="promotionDialog"
   class="promotion-dialog"
@@ -1733,6 +1807,10 @@ body {
             <option value="backgammon">
               Backgammon
             </option>
+
+            <option value="hnefatafl">
+              Hnefatafl
+            </option>
           </select>
         </div>
         <div class="game-action-row">
@@ -2123,6 +2201,8 @@ let enPassantTarget = null;
 let pgnMoves = [];
 let currentTheme = 'classic';
 let currentGame = 'chess';
+let taflPositionHistory = [];
+const taflDirections = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 let boardThemeKey = 'classic';
 let tableBackgroundPreference = 'black';
@@ -4211,6 +4291,210 @@ function setupCheckersBoard() {
   }
 }
 
+function setupHnefataflBoard() {
+  gameState = Array.from({ length: 11 }, () => Array(11).fill(null));
+  for (let offset = 3; offset <= 7; offset++) {
+    gameState[0][offset] = { type: 'P', color: 'black' };
+    gameState[10][offset] = { type: 'P', color: 'black' };
+    gameState[offset][0] = { type: 'P', color: 'black' };
+    gameState[offset][10] = { type: 'P', color: 'black' };
+  }
+  for (const [dr, dc] of taflDirections) {
+    gameState[5 + dr * 4][5 + dc * 4] = { type: 'P', color: 'black' };
+    for (let distance = 1; distance <= 2; distance++) {
+      gameState[5 + dr * distance][5 + dc * distance] = { type: 'P', color: 'white' };
+    }
+  }
+  for (const dr of [-1, 1]) {
+    for (const dc of [-1, 1]) {
+      gameState[5 + dr][5 + dc] = { type: 'P', color: 'white' };
+    }
+  }
+  gameState[5][5] = { type: 'K', color: 'white' };
+  currentPlayer = 'black';
+  taflPositionHistory = [getTaflPositionKey()];
+}
+
+function isTaflSquare(row, col) {
+  return row >= 0 && row < 11 && col >= 0 && col < 11;
+}
+
+function isTaflCorner(row, col) {
+  return (row === 0 || row === 10) && (col === 0 || col === 10);
+}
+
+function isTaflThrone(row, col) {
+  return row === 5 && col === 5;
+}
+
+function getTaflPositionKey() {
+  return currentPlayer + ':' + gameState.flat().map(piece => {
+    if (!piece) return '.';
+    if (piece.type === 'K') return 'K';
+    return piece.color === 'white' ? 'w' : 'b';
+  }).join('');
+}
+
+function getTaflLegalMoves(row, col) {
+  const piece = gameState[row][col];
+  if (!piece) return [];
+  const moves = [];
+  for (const [dr, dc] of taflDirections) {
+    let nextRow = row + dr;
+    let nextCol = col + dc;
+    while (isTaflSquare(nextRow, nextCol) && !gameState[nextRow][nextCol]) {
+      const restricted = isTaflThrone(nextRow, nextCol) || isTaflCorner(nextRow, nextCol);
+      if (piece.type === 'K' || !restricted) {
+        moves.push({ row: nextRow, col: nextCol });
+      }
+      nextRow += dr;
+      nextCol += dc;
+    }
+  }
+  return moves;
+}
+
+function isTaflCaptureSupport(row, col, movingColor) {
+  if (!isTaflSquare(row, col)) return false;
+  const piece = gameState[row][col];
+  if (piece?.color === movingColor) return true;
+  if (isTaflCorner(row, col)) return true;
+  return isTaflThrone(row, col) && (!piece || movingColor === 'white');
+}
+
+function taflDefendersEncircled() {
+  // Flood from every open edge. Attackers form walls, defenders remain traversable.
+  const reached = new Set();
+  const frontier = [];
+  function visit(row, col) {
+    if (!isTaflSquare(row, col) || gameState[row][col]?.color === 'black') return;
+    const key = row * 11 + col;
+    if (reached.has(key)) return;
+    reached.add(key);
+    frontier.push({ row, col });
+  }
+  for (let index = 0; index < 11; index++) {
+    visit(0, index);
+    visit(10, index);
+    visit(index, 0);
+    visit(index, 10);
+  }
+  for (let index = 0; index < frontier.length; index++) {
+    const { row, col } = frontier[index];
+    for (const [dr, dc] of taflDirections) visit(row + dr, col + dc);
+  }
+  return gameState.every((rank, row) => rank.every((piece, col) => {
+    return piece?.color !== 'white' || !reached.has(row * 11 + col);
+  }));
+}
+
+function getTaflOutcome(movingColor) {
+  const defenders = [];
+  let king = null;
+  for (let row = 0; row < 11; row++) {
+    for (let col = 0; col < 11; col++) {
+      const piece = gameState[row][col];
+      if (piece?.color === 'white') defenders.push({ row, col });
+      if (piece?.type === 'K') king = { row, col };
+    }
+  }
+  if (!king) return { result: '0-1', reason: 'The attackers captured the king.' };
+  if (isTaflCorner(king.row, king.col)) {
+    return { result: '1-0', reason: 'The king escaped through a corner.' };
+  }
+  if (movingColor === 'black') {
+    const onEdge = king.row === 0 || king.row === 10 || king.col === 0 || king.col === 10;
+    const surrounded = taflDirections.every(([dr, dc]) => {
+      const row = king.row + dr;
+      const col = king.col + dc;
+      if (!isTaflSquare(row, col)) return defenders.length === 1;
+      return gameState[row][col]?.color === 'black' || isTaflThrone(row, col);
+    });
+    if (surrounded && (!onEdge || defenders.length === 1)) {
+      return { result: '0-1', reason: 'The attackers captured the king.' };
+    }
+  }
+  if (taflDefendersEncircled()) {
+    return { result: '0-1', reason: 'The attackers encircled every defender.' };
+  }
+  const hasMove = gameState.some((rank, row) => rank.some((piece, col) => {
+    return piece?.color === currentPlayer && getTaflLegalMoves(row, col).length > 0;
+  }));
+  if (!hasMove) {
+    return {
+      result: currentPlayer === 'white' ? '0-1' : '1-0',
+      reason: `${currentPlayer === 'white' ? 'Defenders' : 'Attackers'} have no legal move.`
+    };
+  }
+  const position = getTaflPositionKey();
+  if (taflPositionHistory.filter(previous => previous === position).length >= 3) {
+    return { result: '1/2-1/2', reason: 'The same position and turn occurred three times.' };
+  }
+  return null;
+}
+
+function finishTaflGame(result, reason) {
+  gameResult = result;
+  gameEndReason = reason;
+  selectedSquare = null;
+  legalMoves = [];
+  saveGame();
+  drawBoard();
+  updateStatusBar();
+}
+
+function executeTaflMove(fromRow, fromCol, toRow, toCol) {
+  if (currentGame !== 'hnefatafl' || gameResult !== '*') return false;
+  if (!isTaflSquare(fromRow, fromCol) || !isTaflSquare(toRow, toCol)) return false;
+  const piece = gameState[fromRow][fromCol];
+  if (!piece || piece.color !== currentPlayer) return false;
+  if (!getTaflLegalMoves(fromRow, fromCol).some(move => move.row === toRow && move.col === toCol)) return false;
+
+  gameState[fromRow][fromCol] = null;
+  gameState[toRow][toCol] = piece;
+  const captures = [];
+  for (const [dr, dc] of taflDirections) {
+    const row = toRow + dr;
+    const col = toCol + dc;
+    const victim = gameState[row]?.[col];
+    if (victim && victim.color !== piece.color && victim.type !== 'K' &&
+        isTaflCaptureSupport(row + dr, col + dc, piece.color)) {
+      captures.push({ row, col, piece: victim });
+    }
+  }
+  // Collect captures before removing pieces so all sandwiches use the same position.
+  for (const capture of captures) gameState[capture.row][capture.col] = null;
+  moveHistory.push({ fromRow, fromCol, toRow, toCol, piece: { ...piece }, captures });
+  lastMoveDestination = { row: toRow, col: toCol };
+  selectedSquare = null;
+  legalMoves = [];
+  currentPlayer = piece.color === 'black' ? 'white' : 'black';
+  taflPositionHistory.push(getTaflPositionKey());
+  const outcome = getTaflOutcome(piece.color);
+  if (outcome) {
+    finishTaflGame(outcome.result, outcome.reason);
+  } else {
+    saveGame();
+    drawBoard();
+    updateStatusBar();
+  }
+  return true;
+}
+
+function handleTaflClick(row, col) {
+  if (gameResult !== '*') return;
+  if (selectedSquare && executeTaflMove(selectedSquare.row, selectedSquare.col, row, col)) return;
+  const piece = gameState[row][col];
+  if (piece?.color === currentPlayer) {
+    selectedSquare = { row, col };
+    legalMoves = getTaflLegalMoves(row, col);
+  } else {
+    selectedSquare = null;
+    legalMoves = [];
+  }
+  drawBoard();
+}
+
 function setupBackgammonBoard() {
   gameState = Array(24).fill(null).map(() => ({ white: 0, black: 0 }));
 
@@ -4251,6 +4535,7 @@ function hardResetForCurrentGame() {
   legalMoves = [];
   moveHistory = [];
   lastMoveDestination = null;
+  taflPositionHistory = [];
   pgnMoves = [];
   importedPGNHeaders = {};
   currentPlayer = 'white';
@@ -4273,6 +4558,7 @@ if (currentGame === 'chess') {
   if (currentGame === 'chess') setupBoard();
   if (currentGame === 'checkers') setupCheckersBoard();
   if (currentGame === 'backgammon') setupBackgammonBoard();
+  if (currentGame === 'hnefatafl') setupHnefataflBoard();
 
   if (
     currentGame === 'chess' &&
@@ -4337,7 +4623,8 @@ function saveGame() {
     diceRoll,
     diceUsed,
     gameEndReason,
-    selectedPoint
+    selectedPoint,
+    taflPositionHistory
   };
   localStorage.setItem(getSaveKey(), JSON.stringify(saveData));
 }
@@ -4367,6 +4654,11 @@ function loadGame() {
     halfMoveClock = data.halfMoveClock || 0;
     fullMoveNumber = data.fullMoveNumber || 1;
     gameEndReason = data.gameEndReason || '';
+    selectedSquare = null;
+    legalMoves = [];
+    taflPositionHistory = currentGame === 'hnefatafl'
+      ? data.taflPositionHistory || [getTaflPositionKey()]
+      : [];
     
     if (
   ['white', 'black', 'random']
@@ -4462,6 +4754,14 @@ function finishChessGame(
 }
 
 function resignCurrentGame() {
+  if (currentGame === 'hnefatafl') {
+    if (gameResult !== '*') return;
+    const army = currentPlayer === 'black' ? 'Attackers' : 'Defenders';
+    if (confirm(`${army}, resign this game?`)) {
+      finishTaflGame(currentPlayer === 'black' ? '1-0' : '0-1', `${army} resigned.`);
+    }
+    return;
+  }
   if (currentGame !== 'chess') {
     alert(
       'Resignation is currently available for chess games.'
@@ -4604,6 +4904,12 @@ function computerAcceptsDraw() {
 }
 
 function offerDraw() {
+  if (currentGame === 'hnefatafl') {
+    if (gameResult === '*' && confirm('Draw offered. Does the other player accept?')) {
+      finishTaflGame('1/2-1/2', 'Both players agreed a draw.');
+    }
+    return;
+  }
   if (currentGame !== 'chess') {
     alert(
       'Draw offers are currently available for chess games.'
@@ -4742,12 +5048,13 @@ function updateGameActionButtons() {
   computerEnabled &&
   currentPlayer === computerColor;
 
-const disabled =
-  currentGame !== 'chess' ||
-  gameResult !== '*' ||
-  !pgnPlaybackPaused ||
-  reviewingPGN ||
-  computerTurn;
+const disabled = currentGame === 'hnefatafl'
+  ? gameResult !== '*'
+  : currentGame !== 'chess' ||
+    gameResult !== '*' ||
+    !pgnPlaybackPaused ||
+    reviewingPGN ||
+    computerTurn;
 
   if (resignButton) {
     resignButton.disabled =
@@ -4847,6 +5154,16 @@ function updateStatusBar() {
       statusBar.textContent = `${turn} to move${inCheck ? ' - CHECK!' : ''}`;
       statusBar.style.color = inCheck ? '#f00' : '#0f0';
     }
+  } else if (currentGame === 'hnefatafl') {
+    if (gameResult === '*') {
+      statusBar.textContent = currentPlayer === 'black'
+        ? 'Attackers (Black) to move · Capture the king'
+        : 'Defenders (White) to move · Get the king to a corner';
+    } else {
+      const winner = gameResult === '1-0' ? 'Defenders win' : 'Attackers win';
+      statusBar.textContent = `${gameResult === '1/2-1/2' ? 'Draw' : winner} · ${gameEndReason}`;
+    }
+    statusBar.style.color = gameResult === '*' ? '#fff' : '#ffcf54';
   } else if (currentGame === 'checkers') {
     statusBar.textContent = `${currentPlayer === 'white' ? 'White' : 'Black'} to move`;
     statusBar.style.color = '#0f0';
@@ -4860,6 +5177,10 @@ function updateStatusBar() {
 
 function drawBoard() {
   board.innerHTML = '';
+  const playingTafl = currentGame === 'hnefatafl';
+  board.classList.toggle('hnefatafl-board', playingTafl);
+  board.style.maxWidth = '';
+  document.getElementById('hnefataflInfo').hidden = !playingTafl;
 
   if (currentGame === 'backgammon') {
     document.getElementById('backgammonControls').style.display = 'block';
@@ -4912,16 +5233,17 @@ function drawBoard() {
       ? correspondenceGame.localColor === 'black'
       : computerEnabled && computerColor === 'white'
   );
-  const files = ['a','b','c','d','e','f','g','h'];
+  const boardSize = playingTafl ? 11 : 8;
+  const files = 'abcdefghijk';
   board.style.display = 'grid';
-  board.style.gridTemplateColumns = 'repeat(8, 1fr)';
+  board.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
   board.style.aspectRatio = '1 / 1';
 
   // Find king positions to highlight if in check
   let whiteKingPos = null;
   let blackKingPos = null;
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  for (let row = 0; row < boardSize; row++) {
+    for (let col = 0; col < boardSize; col++) {
       const piece = gameState[row][col];
       if (piece && piece.type === 'K') {
         if (piece.color === 'white') whiteKingPos = { row, col };
@@ -4930,14 +5252,24 @@ function drawBoard() {
     }
   }
 
-  for (let displayRow = 0; displayRow < 8; displayRow++) {
-    const row = blackAtBottom ? 7 - displayRow : displayRow;
-    for (let displayCol = 0; displayCol < 8; displayCol++) {
-      const col = blackAtBottom ? 7 - displayCol : displayCol;
+  for (let displayRow = 0; displayRow < boardSize; displayRow++) {
+    const row = blackAtBottom ? boardSize - 1 - displayRow : displayRow;
+    for (let displayCol = 0; displayCol < boardSize; displayCol++) {
+      const col = blackAtBottom ? boardSize - 1 - displayCol : displayCol;
       const square = document.createElement('div');
       square.className = 'square ' + ((row + col) % 2 === 0 ? 'white' : 'black');
       square.dataset.row = row;
       square.dataset.col = col;
+      if (playingTafl) {
+        if (isTaflThrone(row, col)) {
+          square.classList.add('tafl-throne');
+          square.title = 'Throne · Only the king may stop here';
+        }
+        if (isTaflCorner(row, col)) {
+          square.classList.add('tafl-corner');
+          square.title = 'Escape corner · Bring the king here to win';
+        }
+      }
 
       // Highlight king if in check
       if (currentGame === 'chess') {
@@ -4952,10 +5284,10 @@ function drawBoard() {
       if (displayCol === 0) {
         const rank = document.createElement('div');
         rank.className = 'rank-label';
-        rank.textContent = 8 - row;
+        rank.textContent = boardSize - row;
         square.appendChild(rank);
       }
-      if (displayRow === 7) {
+      if (displayRow === boardSize - 1) {
         const file = document.createElement('div');
         file.className = 'file-label';
         file.textContent = files[col];
@@ -4965,12 +5297,13 @@ function drawBoard() {
       const piece = gameState[row] ? gameState[row][col] : null;
       if (piece) {
         const img = document.createElement('img');
-        if (currentGame === 'chess') {
+        if (currentGame === 'chess' || playingTafl) {
           img.src = getSpriteForPiece(piece);
         } else if (currentGame === 'checkers') {
           const type = piece.king ? 'k' : 'p';
           img.src = `pieces/${currentTheme}/${piece.color}-${type}.png`;
         }
+        img.alt = `${piece.color} ${playingTafl && piece.type === 'K' ? 'king' : piece.type || 'piece'}`;
         square.appendChild(img);
       }
 
@@ -5002,6 +5335,20 @@ function drawBoard() {
     logDiv.scrollTop = logDiv.scrollHeight;
   } else if (currentGame === 'checkers') {
     logDiv.innerHTML = `<strong>Checkers Mode:</strong> Basic moves only (log coming soon)`;
+  } else if (playingTafl) {
+    const pieces = gameState.flat().filter(Boolean);
+    const attackers = pieces.filter(piece => piece.color === 'black').length;
+    const defenders = pieces.filter(piece => piece.color === 'white' && piece.type !== 'K').length;
+    document.getElementById('hnefataflArmyCount').textContent =
+      `${attackers} attackers · ${defenders} defenders + king`;
+    logDiv.innerHTML = '<strong>Hnefatafl moves</strong><br>' + moveHistory.map((move, index) => {
+      const from = files[move.fromCol] + (11 - move.fromRow);
+      const to = files[move.toCol] + (11 - move.toRow);
+      const army = move.piece.color === 'black' ? 'Attackers' : 'Defenders';
+      const captures = move.captures.length ? ` · ${move.captures.length} captured` : '';
+      return `${index + 1}. ${army} ${from} → ${to}${captures}`;
+    }).join('<br>');
+    logDiv.scrollTop = logDiv.scrollHeight;
   }
 }
 
@@ -5094,6 +5441,11 @@ async function handleSquareClick(e) {
   const row = parseInt(e.currentTarget.dataset.row);
   const col = parseInt(e.currentTarget.dataset.col);
   const clickedPiece = gameState[row][col];
+
+  if (currentGame === 'hnefatafl') {
+    handleTaflClick(row, col);
+    return;
+  }
 
   if (gameResult !== "*" && currentGame === 'chess') {
     return; // Game is over
@@ -9283,7 +9635,7 @@ if (
 </script>
 
 <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-  Version 3.4.3 (Black Flip)
+  Version 3.5.1 (Custom Table Background)
 </div>
 
 </body>
